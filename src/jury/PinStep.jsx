@@ -24,7 +24,7 @@ import {
 import MinimalLoaderOverlay from "../shared/MinimalLoaderOverlay";
 
 // ── 4-box PIN input with explicit OK button ───────────────────
-function PinBoxes({ onSubmit, pinError }) {
+function PinBoxes({ onSubmit, pinError, shake }) {
   const [digits, setDigits] = useState(["", "", "", ""]);
   const inputRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
 
@@ -86,7 +86,7 @@ function PinBoxes({ onSubmit, pinError }) {
   const isComplete = digits.every((d) => d !== "");
 
   return (
-    <div className="pin-input-group">
+    <div className={`pin-input-group${shake ? " pin-input-group--shake" : ""}`}>
       <div className="pin-boxes-row">
         {digits.map((d, i) => (
           <input
@@ -178,6 +178,9 @@ export default function PinStep({
     setShake(false);
     const raf = requestAnimationFrame(() => setShake(true));
     const t = setTimeout(() => setShake(false), 260);
+    try {
+      if (navigator?.vibrate) navigator.vibrate([60, 40, 60]);
+    } catch {}
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(t);
@@ -282,7 +285,7 @@ I’ve saved my PIN —               Continue →
               <div className="premium-title">Too many attempts</div>
               <div className="premium-subtitle">This session is locked for security.</div>
             </div>
-                        <div className="premium-info-strip">
+                        <div className="premium-info-strip pin-info-inline">
               <span className="info-strip-icon" aria-hidden="true"><LockIcon /></span>
                               <span>Contact the administrator to reset your access.</span>
                           </div>
@@ -363,7 +366,7 @@ I’ve saved my PIN —               Continue →
             </div>
           )}
 
-          <PinBoxes onSubmit={handleVerify} pinError={pinError} />
+          <PinBoxes onSubmit={handleVerify} pinError={pinError} shake={shake} />
 
         </div>
       </div>

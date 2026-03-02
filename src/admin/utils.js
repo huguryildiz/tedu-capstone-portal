@@ -35,9 +35,6 @@ export function tsToMillis(ts) {
   if (!ts) return 0;
   const s = String(ts).trim().replace(/\s*,\s*/g, ", ");
 
-  const native = Date.parse(s);
-  if (Number.isFinite(native)) return native;
-
   // EU dot: dd.mm.yyyy HH:mm[:ss]
   const euDot = s.match(
     /^([0-3]?\d)\.([0-1]?\d)\.(\d{4}),?\s*([0-2]?\d):([0-5]\d)(?::([0-5]\d))?$/
@@ -58,14 +55,19 @@ export function tsToMillis(ts) {
   const us = s.match(
     /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?$/i
   );
-  if (!us) return 0;
-  let h = +(us[4] || 0);
-  const ap = (us[7] || "").toUpperCase();
-  if (ap === "PM" && h < 12) h += 12;
-  if (ap === "AM" && h === 12) h = 0;
-  return (
-    new Date(+us[3], +us[1] - 1, +us[2], h, +(us[5] || 0), +(us[6] || 0)).getTime() || 0
-  );
+  if (us) {
+    let h = +(us[4] || 0);
+    const ap = (us[7] || "").toUpperCase();
+    if (ap === "PM" && h < 12) h += 12;
+    if (ap === "AM" && h === 12) h = 0;
+    return (
+      new Date(+us[3], +us[1] - 1, +us[2], h, +(us[5] || 0), +(us[6] || 0)).getTime() || 0
+    );
+  }
+
+  const native = Date.parse(s);
+  if (Number.isFinite(native)) return native;
+  return 0;
 }
 
 // ── Human-readable timestamp ──────────────────────────────────
@@ -76,13 +78,14 @@ export function formatTs(ts) {
   if (!ts) return "—";
   const s = String(ts).trim();
   // Already in DD.MM.YYYY HH:mm[:ss] — sheet is the source of truth.
-  if (/^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}/.test(s)) return s;
+  const stored = /^(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2})(?::\d{2})?$/.exec(s);
+  if (stored) return stored[1];
   // Fallback for ISO / legacy slash-format rows.
   const ms = tsToMillis(s);
   if (!ms) return s;
   const d   = new Date(ms);
   const pad = (n) => String(n).padStart(2, "0");
-  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 // ── Generic comparator (number-aware) ────────────────────────

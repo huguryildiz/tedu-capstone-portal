@@ -26,6 +26,7 @@ import {
   PencilIcon,
   ClockIcon,
   InfoIcon,
+  BadgeInfoIcon,
   CircleIcon,
 } from "../shared/Icons";
 import MinimalLoaderOverlay from "../shared/MinimalLoaderOverlay";
@@ -33,16 +34,20 @@ import MinimalLoaderOverlay from "../shared/MinimalLoaderOverlay";
 function formatShortTs(ts) {
   if (!ts || ts === "—") return "—";
   const s = String(ts).trim();
-  // Already stored as DD.MM.YYYY HH:mm[:ss] — return as-is, sheet is source of truth.
-  if (/^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}/.test(s)) return s;
-  // ISO string fallback — parse and format with seconds in Istanbul timezone.
+  // Already stored as DD.MM.YYYY HH:mm[:ss] — strip seconds for display.
+  const stored = /^(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2})(?::\d{2})?$/.exec(s);
+  if (stored) return stored[1];
+  // Legacy slash format DD/MM/YYYY HH:mm[:ss] — strip seconds and convert to dots.
+  const storedSlash = /^(\d{2})\/(\d{2})\/(\d{4} \d{2}:\d{2})(?::\d{2})?$/.exec(s);
+  if (storedSlash) return `${storedSlash[1]}.${storedSlash[2]}.${storedSlash[3]}`;
+  // ISO string fallback — parse and format without seconds in Istanbul timezone.
   try {
     const d = new Date(s);
     if (isNaN(d.getTime())) return s;
     return new Intl.DateTimeFormat("en-GB", {
       timeZone: "Europe/Istanbul",
       day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit", second: "2-digit",
+      hour: "2-digit", minute: "2-digit",
       hour12: false,
     }).format(d).replace(",", "").replace(/\//g, ".");
   } catch {
@@ -90,38 +95,45 @@ export default function SheetsProgressDialog({ progress, onConfirm, onFresh }) {
 
         {/* Header */}
         <div className="spd-header">
-          <div className="spd-icon spd-icon-state" aria-hidden="true">
-            {allSubmitted ? <BadgeCheckIcon /> : hasData ? <SaveIcon /> : <ClipboardIcon />}
-          </div>
-          <div className="spd-header-main">
-            <div className="spd-title">
+          <div className="spd-header-left">
+            <div className="spd-icon spd-icon-state" aria-hidden="true">
+              {allSubmitted ? <BadgeCheckIcon /> : hasData ? <SaveIcon /> : <ClipboardIcon />}
+            </div>
+            <div className="spd-header-main">
+            <div className="spd-title" title={allSubmitted
+              ? "All evaluations submitted"
+              : hasData
+              ? "Saved progress found"
+              : "No saved data found"}>
               {allSubmitted
                 ? "All evaluations submitted"
                 : hasData
                 ? "Saved progress found"
                 : "No saved data found"}
             </div>
-            <div className="spd-sub">
-              {filledCount} / {totalCount} groups completed on server
+            <div className="spd-sub" title={`${filledCount} / ${totalCount} groups completed`}>
+              {filledCount} / {totalCount} groups completed
             </div>
-            <div className="spd-progress-wrap">
-              <div className="spd-progress-bar-bg">
-                <div
-                  className="spd-progress-bar-fill"
-                  style={{ width: `${progressPct}%`, background: barColor }}
-                />
-              </div>
-              <span className="spd-progress-label">{progressPct}%</span>
             </div>
           </div>
           {isEditing && (
             <div className="spd-header-meta">
-              <span className="status-badge editing is-compact spd-editing-pill">
+              <span className="status-badge editing spd-editing-pill">
                 <PencilIcon />
                 Editing
               </span>
             </div>
           )}
+        </div>
+
+        <div className="spd-progress-wrap spd-progress-full">
+          <div className="spd-progress-bar-bg">
+            <div
+              className="spd-progress-bar-fill"
+              style={{ width: `${progressPct}%`, background: barColor }}
+            />
+          </div>
+          <span className="spd-progress-label">{progressPct}%</span>
         </div>
 
         {/* Per-group status list */}
@@ -172,9 +184,7 @@ export default function SheetsProgressDialog({ progress, onConfirm, onFresh }) {
                     <div className="group-accordion-panel-inner spd-row-details">
                       {p.desc && (
                         <div className="spd-detail">
-                          <span className="spd-detail-icon" aria-hidden="true">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-info-icon lucide-info"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                          </span>
+                          <span className="spd-detail-icon" aria-hidden="true"><BadgeInfoIcon /></span>
                           <span className="spd-detail-text swipe-x">{p.desc}</span>
                         </div>
                       )}

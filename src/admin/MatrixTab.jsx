@@ -98,10 +98,10 @@ const cellStyle = (entry) => {
 };
 
 const cellText = (entry) => {
-  if (!entry) return "—";
+  if (!entry) return "";
   if (entry.status === "all_submitted" || entry.status === "group_submitted") return entry.total;
   if (entry.status === "in_progress") return "";  // background color only
-  return "—";
+  return "";
 };
 
 // ── Component ──────────────────────────────────────────────────
@@ -408,7 +408,7 @@ export default function MatrixTab({ data, jurors, groups }) {
       </div>
 
       {/* Info note */}
-      <p className="matrix-info-note"><InfoIcon /> Averages include only <strong>completed</strong> submissions.</p>
+      <p className="matrix-info-note"><InfoIcon /> Averages include only completed submissions.</p>
 
       <FilterPopoverPortal
         open={activeFilterCol === "juror"}

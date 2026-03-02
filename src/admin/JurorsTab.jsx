@@ -5,7 +5,7 @@ import { PROJECTS } from "../config";
 import { formatTs, adminCompletionPct, cmp } from "./utils";
 import { readSection, writeSection } from "./persist";
 import { StatusBadge } from "./components";
-import { CircleCheckBigIcon, UsersRoundIcon, FolderKanbanIcon, ClockIcon, UserCheckIcon, ChevronDownIcon } from "../shared/Icons";
+import { CircleCheckBigIcon, UsersRoundIcon, BadgeInfoIcon, ClockIcon, UserCheckIcon, ChevronDownIcon, FolderKanbanIcon, PencilIcon, KeyIcon } from "../shared/Icons";
 
 const PROJECT_LIST = PROJECTS.map((p, i) =>
   typeof p === "string"
@@ -113,34 +113,41 @@ export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
           return (
             <div key={key} className={`juror-card ${statusClass}`}>
 
-              <div className="juror-card-header">
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div className="juror-name" style={{ wordBreak: "break-word" }}>
-                    <span className="juror-name-icon" aria-hidden="true"><UserCheckIcon /></span>
-                    <span className="juror-name-text">
-                      {jury}
-                      {latestRow?.juryDept && (
-                        <span className="juror-dept-inline"> ({latestRow.juryDept})</span>
-                      )}
-                    </span>
-                  </div>
-                  <div className="juror-header-actions">
+                <div className="juror-card-header">
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="juror-name" style={{ wordBreak: "break-word" }}>
+                      <span className="juror-name-icon" aria-hidden="true"><UserCheckIcon /></span>
+                      <span className="juror-name-text">
+                        {jury}
+                        {latestRow?.juryDept && (
+                          <span className="juror-dept-inline"> ({latestRow.juryDept})</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="juror-header-actions">
                     {isEditing ? (
-                      <StatusBadge editingFlag="editing" />
-                    ) : isCompleted ? (
-                      <StatusBadge
-                        variant="completed"
-                        icon={<CircleCheckBigIcon />}
-                      >
-                        Completed
-                      </StatusBadge>
+                      <StatusBadge variant="editing is-compact juror-editing-pill-mobile" icon={<PencilIcon />}>Editing</StatusBadge>
                     ) : (
-                      <StatusBadge status={overall} />
+                      isCompleted ? (
+                        <StatusBadge
+                          variant="completed"
+                          icon={<CircleCheckBigIcon />}
+                        >
+                          Completed
+                        </StatusBadge>
+                      ) : (
+                        <StatusBadge status={overall} />
+                      )
                     )}
+                    </div>
                   </div>
-                </div>
 
                 <div className="juror-meta">
+                  {isEditing && (
+                    <div className="juror-meta-editing">
+                      <StatusBadge variant="editing is-compact juror-editing-pill-desktop" icon={<PencilIcon />}>Editing</StatusBadge>
+                    </div>
+                  )}
                   {latestRow?.timestamp && (
                     <div className="juror-last-submit">
                       <span className="juror-last-submit-label">Last activity</span>
@@ -149,17 +156,18 @@ export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
                       </span>
                     </div>
                   )}
-                  {onAllowEdit && overall === "all_submitted" && !isEditing && (
+                  {onAllowEdit && overall === "all_submitted" && !isEditing && allowEditState[key] !== "ok" && (
                     <button
                       className={`allow-edit-btn${allowEditState[key] === "ok" ? " success" : ""}`}
-                      title={`Allow ${jury} to edit their scores`}
+                      title={`Unlock ${jury} for editing`}
                       onClick={async () => {
                         setAllowEditState((prev) => ({ ...prev, [key]: "loading" }));
                         const json = await onAllowEdit(jury, latestRow?.juryDept || "", latestRow?.jurorId || "");
                         setAllowEditState((prev) => ({ ...prev, [key]: json?.status === "ok" ? "ok" : "error" }));
                       }}
                     >
-                      {allowEditState[key] === "ok" ? "✓ Edit Allowed" : "Allow Edit"}
+                      <PencilIcon />
+                      Unlock
                     </button>
                   )}
                   {onPinReset && (
@@ -168,10 +176,7 @@ export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
                       title={`Reset PIN for ${jury}`}
                       onClick={() => onPinReset(jury, latestRow?.juryDept || "", latestRow?.jurorId || "")}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-key-round-icon lucide-key-round" aria-hidden="true">
-                        <path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/>
-                        <circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>
-                      </svg>
+                      <KeyIcon />
                       Reset PIN
                     </button>
                   )}
@@ -222,7 +227,10 @@ export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
                           <div className="juror-row-left">
                             <div className="juror-row-header-line">
                               <span className="juror-row-name">
-                                {grp?.name || `Group ${d.projectId}`}
+                                <span className="juror-row-name-icon" aria-hidden="true"><FolderKanbanIcon /></span>
+                                <span className="juror-row-name-text">
+                                  {grp?.name || `Group ${d.projectId}`}
+                                </span>
                               </span>
                               {hasDetails && (
                                 <span className={`group-accordion-chevron${isExpanded ? " open" : ""}`}>
@@ -239,16 +247,18 @@ export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
                                 {formatTs(d.timestamp)}
                               </span>
                             )}
-                            <StatusBadge status={d.status} />
-                            {(d.status === "all_submitted" || d.status === "group_submitted") && (
-                              <span
-                                className="juror-score"
-                                title="/ 100"
-                                aria-label={`${d.total} / 100`}
-                              >
-                                {d.total}
-                              </span>
-                            )}
+                            <div className="juror-row-right-meta">
+                              <StatusBadge status={d.status} />
+                              {(d.status === "all_submitted" || d.status === "group_submitted") && (
+                                <span
+                                  className="juror-score"
+                                  title="/ 100"
+                                  aria-label={`${d.total} / 100`}
+                                >
+                                  {d.total}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -260,7 +270,7 @@ export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
                           <div className="group-accordion-panel-inner juror-accordion-inner">
                             {grp?.desc && (
                               <span className="juror-row-desc group-card-desc">
-                                <span className="group-card-desc-icon" aria-hidden="true"><FolderKanbanIcon /></span>
+                                <span className="group-card-desc-icon" aria-hidden="true"><BadgeInfoIcon /></span>
                                 <span className="group-card-desc-text">{grp.desc}</span>
                               </span>
                             )}

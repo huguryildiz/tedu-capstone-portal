@@ -27,7 +27,7 @@ import {
   UserCheckIcon,
   FolderKanbanIcon,
   UsersRoundIcon,
-  InfoIcon,
+  BadgeInfoIcon,
   CheckCircle2Icon,
   CheckIcon,
   HourglassIcon,
@@ -35,6 +35,7 @@ import {
   PencilIcon,
   TriangleAlertIcon,
 } from "../shared/Icons";
+import LevelPill from "../shared/LevelPill";
 
 function progressGradient(pct) {
   if (pct === 0)   return "#e2e8f0";
@@ -201,7 +202,7 @@ export default function EvalStep({
             <div className="eval-project-details">
               {project.desc && (
                 <div className="eval-project-detail">
-                  <span className="eval-project-detail-icon" aria-hidden="true"><InfoIcon /></span>
+                  <span className="eval-project-detail-icon" aria-hidden="true"><BadgeInfoIcon /></span>
                   <span className="eval-project-detail-text eval-scroll-line">{project.desc}</span>
                 </div>
               )}
@@ -304,9 +305,7 @@ export default function EvalStep({
                   {crit.rubric.map((r) => (
                     <div key={r.range} className="rubric-row">
                       <div className="rubric-range">{r.range}</div>
-                      <div className={`rubric-level rubric-pill rubric-${String(r.level || "").toLowerCase().replace(/\s+/g, "-")}`}>
-                        {r.level}
-                      </div>
+                      <LevelPill variant={r.level}>{r.level}</LevelPill>
                       <div className="rubric-desc">{r.desc}</div>
                     </div>
                   ))}

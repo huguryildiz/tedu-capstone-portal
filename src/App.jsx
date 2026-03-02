@@ -75,7 +75,7 @@ export default function App() {
           <div className="premium-card">
             <div className="premium-header">
               <div className="premium-icon-square" aria-hidden="true"><LockIcon /></div>
-              <div className="premium-title">Results Panel</div>
+              <div className="premium-title">Admin Panel</div>
               <div className="premium-subtitle">Enter the admin password to view results</div>
             </div>
             <div className="premium-input-wrap">
@@ -114,7 +114,7 @@ export default function App() {
             <button className="premium-btn-link" onClick={() => { setPage("home"); setAdminAuthError(""); }}>
               ← Back to Home
             </button>
-            <div className="premium-helper">Admin Access • Restricted</div>
+          
           </div>
         </div>
       );
@@ -155,8 +155,7 @@ export default function App() {
         <h1>Senior Project Jury Portal</h1>
 
         <p className="home-sub">
-          TED University <br />
-          Dept. of Electrical &amp; Electronics Engineering
+          TED University · EEE Dept.
         </p>
 
         <div className="home-buttons">

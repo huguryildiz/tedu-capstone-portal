@@ -14,7 +14,8 @@
 // ============================================================
 
 import { useState, useEffect, useRef } from "react";
-import { CRITERIA, MUDEK_OUTCOMES, BAND_COLORS, MUDEK_THRESHOLD } from "./config";
+import { CRITERIA, MUDEK_OUTCOMES, MUDEK_THRESHOLD } from "./config";
+import LevelPill from "./shared/LevelPill";
 import { GraduationCapIcon, ChevronDownIcon, SearchIcon } from "./shared/Icons";
 
 // ── Per-chart MÜDEK outcome code lists ───────────────────────
@@ -206,7 +207,6 @@ function MudekRubricTab() {
   return (
     <div className="mudek-rubric-list">
       {CRITERIA.map((c) => {
-        const bc = BAND_COLORS;
         return (
           <div key={c.id} className="mudek-rubric-criterion">
             <div className="mudek-rubric-criterion-title">
@@ -226,21 +226,11 @@ function MudekRubricTab() {
                 </thead>
                 <tbody>
                   {c.rubric.map((band) => {
-                    const colors = bc[band.level] || {};
                     return (
                       <tr key={band.level}>
                         <td data-label="Range">{band.range}</td>
                         <td data-label="Level">
-                          <span
-                            className="mudek-band-badge"
-                            style={{
-                              background: colors.bg,
-                              color: colors.text,
-                              borderColor: colors.text,
-                            }}
-                          >
-                            {band.level}
-                          </span>
+                          <LevelPill variant={band.level}>{band.level}</LevelPill>
                         </td>
                         <td data-label="Description">{band.desc}</td>
                       </tr>
@@ -496,12 +486,32 @@ export function OutcomeByGroupChart({ stats }) {
   const data = stats.filter((s) => s.count > 0);
   if (!data.length) return <ChartEmpty />;
 
+  const scrollRef = useRef(null);
+  const [wrapW, setWrapW] = useState(0);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = (w) => setWrapW(Math.max(0, Math.round(w || 0)));
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) update(entry.contentRect.width);
+    });
+    ro.observe(el);
+    update(el.getBoundingClientRect().width);
+    return () => ro.disconnect();
+  }, []);
+
   const barW   = 14;
   const gap    = 4;
-  const groupW = OUTCOMES.length * (barW + gap) + 12;
+  const baseGroupW = OUTCOMES.length * (barW + gap) + 12;
   const chartPadTop = 8;
   const chartH = 130;
   const padL   = 28;
+  const baseTotalW = data.length * baseGroupW + padL + 10;
+  const safePad = 28; // matches .chart-scroll-wrap horizontal padding (14px * 2)
+  const targetW = Math.max(baseTotalW, wrapW ? Math.max(wrapW - safePad, 0) : 0);
+  const groupW = Math.max(baseGroupW, (targetW - padL - 10) / data.length);
   const totalW = data.length * groupW + padL + 10;
   const totalH = chartH + chartPadTop;
   const threshY = chartPadTop + (chartH - (MUDEK_THRESHOLD / 100) * chartH);
@@ -515,12 +525,14 @@ export function OutcomeByGroupChart({ stats }) {
         </div>
       </div>
 
-      <div className="chart-svg-wrap">
-        <svg
-          className="chart-main-svg"
-          viewBox={`0 0 ${totalW} ${totalH + 36}`}
-          style={{ width: "100%", height: "auto", display: "block" }}
-        >
+      <div className="chart-scroll-wrap" ref={scrollRef}>
+        <div className="chart-scroll-inner" style={{ minWidth: totalW }}>
+          <div className="chart-svg-wrap">
+            <svg
+              className="chart-main-svg"
+              viewBox={`0 0 ${totalW} ${totalH + 36}`}
+              style={{ width: totalW, maxWidth: "none", height: "auto", display: "block" }}
+            >
           <text
             x="10"
             y={chartPadTop + chartH / 2}
@@ -574,7 +586,9 @@ export function OutcomeByGroupChart({ stats }) {
               </g>
             );
           })}
-        </svg>
+            </svg>
+          </div>
+        </div>
       </div>
 
       <div className="chart-legend">
@@ -923,8 +937,10 @@ export function JurorConsistencyHeatmap({ stats, data }) {
         </span>
       </div>
 
-      <div className="chart-svg-fill heatmap-svg-fill">
-        <svg className="chart-main-svg" viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: W, height: "100%", display: "block" }}>
+      <div className="chart-scroll-wrap">
+        <div className="chart-scroll-inner" style={{ minWidth: W }}>
+          <div className="chart-svg-fill heatmap-svg-fill">
+            <svg className="chart-main-svg" viewBox={`0 0 ${W} ${H}`} style={{ width: W, maxWidth: "none", height: "100%", display: "block" }}>
           {groups.map((g, i) => (
             <text key={g.id} x={leftW + i * cellW + cellW / 2} y={16}
               textAnchor="middle" fontSize="11" fill="#475569" fontWeight="600"
@@ -966,7 +982,9 @@ export function JurorConsistencyHeatmap({ stats, data }) {
               })}
             </g>
           ))}
-        </svg>
+            </svg>
+          </div>
+        </div>
       </div>
 
       <div className="heatmap-legend">

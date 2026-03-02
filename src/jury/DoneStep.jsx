@@ -6,13 +6,15 @@
 
 import { useState } from "react";
 import { PROJECTS, CRITERIA } from "../config";
-import { HomeIcon, ChevronDownIcon, CheckIcon, ClockIcon } from "../shared/Icons";
+import { HomeIcon, ChevronDownIcon, CheckIcon, ClockIcon, BadgeInfoIcon } from "../shared/Icons";
 
 function formatShortTs(raw) {
   if (!raw || raw === "—") return "—";
   const s = String(raw).trim();
-  const stored = /^(\d{2}\/\d{2}\/\d{4} \d{2}:\d{2})/.exec(s);
-  if (stored) return stored[1];
+  const storedSlash = /^(\d{2})\/(\d{2})\/(\d{4} \d{2}:\d{2})(?::\d{2})?$/.exec(s);
+  if (storedSlash) return `${storedSlash[1]}.${storedSlash[2]}.${storedSlash[3]}`;
+  const storedDot = /^(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2})(?::\d{2})?$/.exec(s);
+  if (storedDot) return storedDot[1];
   try {
     const d = new Date(s);
     if (isNaN(d.getTime())) return s;
@@ -21,7 +23,7 @@ function formatShortTs(raw) {
       day: "2-digit", month: "2-digit", year: "numeric",
       hour: "2-digit", minute: "2-digit",
       hour12: false,
-    }).format(d).replace(",", "");
+    }).format(d).replace(",", "").replace(/\//g, ".");
   } catch {
     return s;
   }
@@ -62,7 +64,7 @@ export default function DoneStep({
           </div>
           <div className="premium-title">Thank You!</div>
           <div className="premium-subtitle done-subtitle">
-            <span>Your evaluations have been submitted and recorded.</span>
+            <span>Your evaluations have been submitted.</span>
             <span>Further edits require administrative approval.</span>
           </div>
         </div>
@@ -127,9 +129,7 @@ export default function DoneStep({
                   <div className="group-accordion-panel-inner spd-row-details">
                     {p.desc && (
                       <div className="spd-detail">
-                        <span className="spd-detail-icon" aria-hidden="true">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-info-icon lucide-info"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                        </span>
+                        <span className="spd-detail-icon" aria-hidden="true"><BadgeInfoIcon /></span>
                         <span className="spd-detail-text swipe-x">{p.desc}</span>
                       </div>
                     )}

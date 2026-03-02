@@ -110,6 +110,11 @@ function norm(s) {
 // Returns "dd.MM.yyyy HH:mm:ss" in the Europe/Istanbul timezone.
 function formatTs(raw) {
   try {
+    if (typeof raw === "string") {
+      var s = String(raw).trim();
+      // If already in dd.MM.yyyy HH:mm[:ss], return as-is to avoid locale parsing swaps.
+      if (/^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}(:\d{2})?$/.test(s)) return s;
+    }
     var d = (raw instanceof Date) ? raw : new Date(raw);
     return Utilities.formatDate(d, TZ, TS_FORMAT);
   } catch (_) {

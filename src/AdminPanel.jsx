@@ -515,14 +515,13 @@ export default function AdminPanel({ adminPass, onBack, onAuthError, onInitialLo
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
-      }).format(lastRefresh)
+      }).format(lastRefresh).replace(/\//g, ".")
     : "";
   const lastRefreshTime = lastRefresh
     ? new Intl.DateTimeFormat("en-GB", {
         timeZone: "Europe/Istanbul",
         hour: "2-digit",
         minute: "2-digit",
-        second: "2-digit",
         hour12: false,
       }).format(lastRefresh)
     : "";
@@ -540,7 +539,7 @@ export default function AdminPanel({ adminPass, onBack, onAuthError, onInitialLo
             </button>
             <div className="header-title">
               <div className="results-title-row">
-                <h2>Results Panel</h2>
+                <h2>Admin Panel</h2>
                 <button
                   className="results-toggle"
                   type="button"
@@ -635,7 +634,12 @@ export default function AdminPanel({ adminPass, onBack, onAuthError, onInitialLo
                   </svg>
                 </div>
                 <div className="pin-reset-title">Resetting PIN…</div>
-                <div className="pin-reset-subtitle">Updating access for {pinResetTarget.juryName}</div>
+                <div className="pin-reset-subtitle">
+                  Updating access for{" "}
+                  <strong style={{ fontWeight: 700, color: "#0f172a" }}>
+                    {pinResetTarget.juryName}
+                  </strong>
+                </div>
               </>
             )}
 
@@ -649,10 +653,13 @@ export default function AdminPanel({ adminPass, onBack, onAuthError, onInitialLo
                 </div>
                 <div className="pin-reset-title">PIN reset</div>
                 <div className="pin-reset-subtitle">
-                  {pinResetTarget.juryName} will receive a new PIN on next login.
+                  <strong style={{ fontWeight: 700, color: "#0f172a" }}>
+                    {pinResetTarget.juryName}
+                  </strong>{" "}
+                  will receive a new PIN on next login.
                 </div>
                 <div className="pin-reset-actions">
-                  <button className="premium-btn-primary" type="button" onClick={closePinReset}>
+                  <button className="premium-btn-primary pin-reset-done" type="button" onClick={closePinReset}>
                     Done
                   </button>
                 </div>

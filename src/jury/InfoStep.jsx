@@ -11,7 +11,7 @@
 // and delegates everything else downstream.
 // ============================================================
 
-import { InfoIcon, ArrowLeftIcon, UserRoundCheckIcon } from "../shared/Icons";
+import { InfoIcon, UserRoundCheckIcon } from "../shared/Icons";
 
 export default function InfoStep({
   juryName, setJuryName,
@@ -62,8 +62,6 @@ export default function InfoStep({
           </div>
         </div>
 
-        <div className="premium-helper">Your evaluation is saved automatically.</div>
-
         <button
           className="premium-btn-primary"
           disabled={!canStart}
@@ -72,7 +70,7 @@ export default function InfoStep({
           Start Evaluation →
         </button>
         <button className="premium-btn-link" onClick={onBack} type="button">
-          <ArrowLeftIcon />
+          <span aria-hidden="true">←</span>
           Back to Home
         </button>
       </div>

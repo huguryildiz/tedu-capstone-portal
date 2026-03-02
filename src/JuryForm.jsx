@@ -8,7 +8,7 @@ import PinStep              from "./jury/PinStep";
 import EvalStep             from "./jury/EvalStep";
 import DoneStep             from "./jury/DoneStep";
 import SheetsProgressDialog from "./jury/SheetsProgressDialog";
-import { LockIcon, ShieldCheckIcon } from "./shared/Icons";
+import { LockIcon, ShieldCheckIcon, HomeIcon } from "./shared/Icons";
 import "./styles/jury.css";
 
 export default function JuryForm({ onBack }) {
@@ -58,6 +58,15 @@ export default function JuryForm({ onBack }) {
     onBack();
   }, [shouldGoHome]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!sessionKicked) return;
+    const t = setTimeout(() => {
+      resetAll();
+      onBack();
+    }, 1800);
+    return () => clearTimeout(t);
+  }, [sessionKicked, resetAll, onBack]);
+
   if (sessionKicked) {
     return (
       <div className="premium-overlay">
@@ -67,8 +76,9 @@ export default function JuryForm({ onBack }) {
             <div className="premium-title">Session Ended</div>
             <div className="premium-subtitle">{kickedMsg}</div>
           </div>
-          <button className="premium-btn-primary" onClick={handleKickedAcknowledge}>
-            Return to Sign In
+          <button className="premium-btn-primary session-ended-btn" onClick={() => { resetAll(); onBack(); }}>
+            <HomeIcon />
+            Return to Home
           </button>
         </div>
       </div>

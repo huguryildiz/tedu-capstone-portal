@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { APP_CONFIG, CRITERIA } from "../config";
-import { InfoIcon, UsersRoundIcon, FolderKanbanIcon, ChevronDownIcon } from "../shared/Icons";
+import { InfoIcon, UsersRoundIcon, BadgeInfoIcon, ChevronDownIcon, FolderKanbanIcon } from "../shared/Icons";
 import medalFirst from "../assets/1st-place-medal.svg";
 import medalSecond from "../assets/2nd-place-medal.svg";
 import medalThird from "../assets/3rd-place-medal.svg";
@@ -29,7 +29,7 @@ export default function SummaryTab({ ranked, submittedData }) {
     <div className="summary-page">
       <div className="summary-note">
         <InfoIcon />
-        The scores shown are <strong>average (Σ)</strong> group scores from <strong>completed</strong> evaluations.
+        <span className="summary-note-text">Scores reflect the average (Σ) of completed evaluations.</span>
       </div>
       <div className="rank-list">
       {ranked.map((p, i) => {
@@ -86,17 +86,17 @@ export default function SummaryTab({ ranked, submittedData }) {
                       }}
                       style={{ cursor: hasDetails ? "pointer" : "default" }}
                     >
-                      <span className="group-card-name">{groupLabel}</span>
+                      <span className="group-card-name">
+                        <span className="group-card-name-icon" aria-hidden="true"><FolderKanbanIcon /></span>
+                        <span className="group-card-name-text">{groupLabel}</span>
+                      </span>
                       {hasDetails && (
                         <span className={`group-accordion-chevron${isExpanded ? " open" : ""}`}>
                           <ChevronDownIcon />
                         </span>
                       )}
                     </button>
-                    <span className={`eval-badge${isTop3 ? " full" : " partial"}`}>
-                      <UsersRoundIcon />
-                      {p.count}
-                    </span>
+                    
                   </div>
                   <div className="group-card-score">
                     <small className="group-card-score-label sigma">Σ</small>
@@ -115,7 +115,7 @@ export default function SummaryTab({ ranked, submittedData }) {
                     )}
                     {descLine && (
                       <div className="group-card-desc">
-                        <span className="group-card-desc-icon" aria-hidden="true"><FolderKanbanIcon /></span>
+                        <span className="group-card-desc-icon" aria-hidden="true"><BadgeInfoIcon /></span>
                         <span className="group-card-desc-text">{descLine}</span>
                       </div>
                     )}

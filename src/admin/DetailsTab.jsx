@@ -28,7 +28,6 @@ function displayScore(val) {
 
 const STATUS_OPTIONS = [
   { key: "in_progress",     label: "In Progress" },
-  { key: "editing",         label: "Editing"     },
   { key: "submitted",       label: "Submitted"   },
 ];
 
@@ -112,12 +111,13 @@ function FilterPopoverPortal({ open, anchorRect, anchorEl, onClose, className, c
 
 // jurors prop: { key, name, dept }[]
 export default function DetailsTab({ data, jurors }) {
-  const VALID_STATUSES = ["in_progress", "editing", "submitted"];
+  const VALID_STATUSES = ["in_progress", "submitted"];
   const VALID_SORT_DIRS = ["asc", "desc"];
   const [filterJuror,    setFilterJuror]    = useState(() => { const s = readSection("details"); return typeof s.filterJuror  === "string" ? s.filterJuror  : "ALL"; });
   const [filterDept,     setFilterDept]     = useState(() => { const s = readSection("details"); return typeof s.filterDept   === "string" ? s.filterDept   : "ALL"; });
   const [filterGroup,    setFilterGroup]    = useState(() => { const s = readSection("details"); return typeof s.filterGroup  === "string" ? s.filterGroup  : "ALL"; });
   const [filterStatuses, setFilterStatuses] = useState(() => { const s = readSection("details"); return new Set(Array.isArray(s.filterStatuses) ? s.filterStatuses.filter((k) => VALID_STATUSES.includes(k)) : []); });
+  const [filterEditing,  setFilterEditing]  = useState(() => { const s = readSection("details"); return typeof s.filterEditing === "string" ? s.filterEditing : "ALL"; });
   const [dateFrom,       setDateFrom]       = useState(() => { const s = readSection("details"); return typeof s.dateFrom     === "string" ? s.dateFrom     : ""; });
   const [dateTo,         setDateTo]         = useState(() => { const s = readSection("details"); return typeof s.dateTo       === "string" ? s.dateTo       : ""; });
   const [dateError,      setDateError]      = useState(null);
@@ -173,10 +173,11 @@ export default function DetailsTab({ data, jurors }) {
     writeSection("details", {
       filterJuror, filterDept, filterGroup,
       filterStatuses: [...filterStatuses],
+      filterEditing,
       dateFrom, dateTo, filterComment,
       sortKey, sortDir,
     });
-  }, [filterJuror, filterDept, filterGroup, filterStatuses, dateFrom, dateTo, filterComment, sortKey, sortDir]);
+  }, [filterJuror, filterDept, filterGroup, filterStatuses, filterEditing, dateFrom, dateTo, filterComment, sortKey, sortDir]);
 
   function isValidDateParts(yyyy, mm, dd) {
     if (yyyy < 2000 || yyyy > 2100) return false;
@@ -224,16 +225,18 @@ export default function DetailsTab({ data, jurors }) {
     if (filterDept !== "ALL") count += 1;
     if (filterGroup !== "ALL") count += 1;
     if (filterStatuses.size > 0) count += 1;
+    if (filterEditing !== "ALL") count += 1;
     if (dateFrom || dateTo) count += 1;
     if (filterComment) count += 1;
     return count;
-  }, [filterJuror, filterDept, filterGroup, filterStatuses, dateFrom, dateTo, filterComment]);
+  }, [filterJuror, filterDept, filterGroup, filterStatuses, filterEditing, dateFrom, dateTo, filterComment]);
   const hasAnyFilter = activeFilterCount > 0;
   const isJurorFilterActive = filterJuror !== "ALL" || activeFilterCol === "juror";
   const isDeptFilterActive = filterDept !== "ALL" || activeFilterCol === "dept";
   const isGroupFilterActive = filterGroup !== "ALL" || activeFilterCol === "group";
   const isDateFilterActive = !!dateFrom || !!dateTo || activeFilterCol === "timestamp";
   const isStatusFilterActive = filterStatuses.size > 0 || activeFilterCol === "status";
+  const isEditingFilterActive = filterEditing !== "ALL" || activeFilterCol === "editing";
   const isCommentFilterActive = !!filterComment || activeFilterCol === "comments";
 
   function resetFilters() {
@@ -241,6 +244,7 @@ export default function DetailsTab({ data, jurors }) {
     setFilterDept("ALL");
     setFilterGroup("ALL");
     setFilterStatuses(new Set());
+    setFilterEditing("ALL");
     setDateFrom("");
     setDateTo("");
     setDateError(null);
@@ -311,14 +315,18 @@ export default function DetailsTab({ data, jurors }) {
     }
     if (filterStatuses.size > 0) {
       list = list.filter((r) => {
-        const isEditing = r.editingFlag === "editing" || r.status === "editing";
         const isSubmittedStatus = r.status === "group_submitted" || r.status === "all_submitted";
         const isInProgressStatus = r.status === "in_progress";
 
-        if (filterStatuses.has("editing") && isEditing) return true;
         if (filterStatuses.has("submitted") && isSubmittedStatus) return true;
         if (filterStatuses.has("in_progress") && isInProgressStatus) return true;
         return false;
+      });
+    }
+    if (filterEditing !== "ALL") {
+      list = list.filter((r) => {
+        const isEditing = r.editingFlag === "editing";
+        return filterEditing === "editing" ? isEditing : !isEditing;
       });
     }
     const canApplyDateFilter =
@@ -347,7 +355,7 @@ export default function DetailsTab({ data, jurors }) {
       return sortDir === "asc" ? cmp(av, bv) : cmp(bv, av);
     });
     return list;
-  }, [data, filterJuror, filterGroup, filterDept, filterStatuses, dateFrom, dateTo,
+  }, [data, filterJuror, filterGroup, filterDept, filterStatuses, filterEditing, dateFrom, dateTo,
       filterComment, sortKey, sortDir]);
 
   function setSort(key) {
@@ -546,6 +554,31 @@ export default function DetailsTab({ data, jurors }) {
         ),
       };
     }
+    if (activeFilterCol === "editing") {
+      return {
+        className: "col-filter-popover col-filter-popover-portal",
+        contentKey: filterEditing,
+        content: (
+          <>
+            <select
+              autoFocus
+              value={filterEditing}
+              onChange={(e) => { setFilterEditing(e.target.value); closePopover(); }}
+              className={isEditingFilterActive ? "filter-input-active" : ""}
+            >
+              <option value="ALL">All</option>
+              <option value="editing">Editing only</option>
+              <option value="not_editing">Not editing</option>
+            </select>
+            {filterEditing !== "ALL" && (
+              <button className="col-filter-clear" onClick={() => { setFilterEditing("ALL"); closePopover(); }}>
+                Clear
+              </button>
+            )}
+          </>
+        ),
+      };
+    }
     if (activeFilterCol === "comments") {
       return {
         className: "col-filter-popover col-filter-popover-portal",
@@ -715,6 +748,21 @@ export default function DetailsTab({ data, jurors }) {
                   </button>
                 </div>
               </th>
+              <th style={{ position: "relative", textAlign: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 2, justifyContent: "center" }}>
+                  <span className={`details-col-label${isEditingFilterActive ? " filtered" : ""}`}>
+                    Editing
+                  </span>
+                  <button
+                    type="button"
+                    className={`col-filter-hotspot${isEditingFilterActive ? " active filter-icon-active" : ""}`}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFilterCol("editing", e); }}
+                    title="Filter by editing"
+                  >
+                    <FilterIcon />
+                  </button>
+                </div>
+              </th>
 
               {/* Score columns — sort only, no filter */}
               {SCORE_COLS.map(({ key: col, label }) => (
@@ -746,7 +794,7 @@ export default function DetailsTab({ data, jurors }) {
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={11} style={{ textAlign: "center", padding: 32, color: "#64748b" }}>
+                <td colSpan={12} style={{ textAlign: "center", padding: 32, color: "#64748b" }}>
                   No matching rows.
                 </td>
               </tr>
@@ -773,7 +821,8 @@ export default function DetailsTab({ data, jurors }) {
                   <td style={{ fontSize: 12, color: "#475569", whiteSpace: "nowrap" }}>
                     {formatTs(row.timestamp)}
                   </td>
-                  <td><StatusBadge status={row.status} editingFlag={row.editingFlag} /></td>
+                  <td><StatusBadge status={row.status} /></td>
+                  <td>{row.editingFlag === "editing" ? <StatusBadge editingFlag="editing" /> : null}</td>
                   <td style={{ color: isIP ? "#94a3b8" : undefined }}>{displayScore(row.technical)}</td>
                   <td style={{ color: isIP ? "#94a3b8" : undefined }}>{displayScore(row.design)}</td>
                   <td style={{ color: isIP ? "#94a3b8" : undefined }}>{displayScore(row.delivery)}</td>

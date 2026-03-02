@@ -21,7 +21,7 @@ function formatDashboardTs(date) {
     timeZone: "Europe/Istanbul",
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
-  }).replace(",", " ·");
+  }).replace(",", " ·").replace(/\//g, ".");
 }
 
 // ── Loading skeleton ──────────────────────────────────────────
@@ -74,56 +74,52 @@ function DashboardEmpty() {
 
 // ── Main component ────────────────────────────────────────────
 export default function DashboardTab({ dashboardStats, submittedData, lastRefresh, loading, error }) {
-  const wrapRef  = useRef(null);
+  const wrapRef      = useRef(null);
+  const restoreRef   = useRef(null);
   const [exporting, setExporting] = useState(false);
-  const restorePrintRef = useRef(null);
 
-  // ── PDF export via print (vector SVG) ─────────────────────────
+  // ── PDF export — window.print() with vector SVG ───────────────
   async function handleExportPdf() {
     if (exporting || !wrapRef.current) return;
     setExporting(true);
 
-    const wrap    = wrapRef.current;
-    const toolbar = wrap.querySelector(".dashboard-toolbar");
-    const header  = wrap.querySelector(".print-header");
-    const badges  = wrap.querySelectorAll(".mudek-badge-wrap");
-
-    const prevToolbar = toolbar?.style.display ?? "";
-    const prevHeader  = header?.style.display ?? "";
-    const prevBadge   = [];
-    badges.forEach((b) => prevBadge.push(b.style.visibility ?? ""));
-
-    const restore = () => {
-      if (toolbar) toolbar.style.display = prevToolbar;
-      if (header)  header.style.display  = prevHeader;
-      badges.forEach((b, i) => { b.style.visibility = prevBadge[i] || ""; });
-      wrap.classList.remove("print-mode");
-      setExporting(false);
-      restorePrintRef.current = null;
-    };
-
-    restorePrintRef.current = restore;
-
-    if (toolbar) toolbar.style.display = "none";
-    if (header)  header.style.display  = "block";
-    badges.forEach((b) => (b.style.visibility = "hidden"));
+    const wrap = wrapRef.current;
     wrap.classList.add("print-mode");
 
-    const handleAfterPrint = () => restore();
-    window.addEventListener("afterprint", handleAfterPrint, { once: true });
+    let done = false;
+    const restore = () => {
+      if (done) return;
+      done = true;
+      wrap.classList.remove("print-mode");
+      clearTimeout(safariTimer);
+      window.removeEventListener("afterprint", restore);
+      printMq.removeEventListener("change", onMqChange);
+      restoreRef.current = null;
+      setExporting(false);
+    };
+    restoreRef.current = restore;
 
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        window.print();
-      }, 50);
-    });
+    // Chrome / Firefox: afterprint fires on dialog close (print or cancel)
+    window.addEventListener("afterprint", restore, { once: true });
+
+    // Safari: afterprint is unreliable — watch the print media query instead
+    const printMq = window.matchMedia("print");
+    const onMqChange = (e) => { if (!e.matches) restore(); };
+    printMq.addEventListener("change", onMqChange);
+
+    // Hard fallback: give up after 60 s (user left dialog open)
+    const safariTimer = setTimeout(restore, 60_000);
+
+    // Wait for fonts + two layout passes before handing to the browser
+    await document.fonts.ready;
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await new Promise((r) => setTimeout(r, 150));
+
+    window.print();
   }
 
-  useEffect(() => {
-    return () => {
-      if (restorePrintRef.current) restorePrintRef.current();
-    };
-  }, []);
+  // Restore print state on unmount (e.g. tab switch while dialog is open)
+  useEffect(() => () => { restoreRef.current?.(); }, []);
 
   // ── Render states ────────────────────────────────────────────
   const showPrint = formatDashboardTs(lastRefresh);
