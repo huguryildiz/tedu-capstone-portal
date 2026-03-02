@@ -1,0 +1,389 @@
+/* admin-jurors.css — Jurors tab: cards, search, PIN modal, allow-edit */
+
+/* ── Jurors tab ─────────────────────────────────────────────── */
+.jurors-tab-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  min-width: 0;
+}
+
+.jurors-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.juror-filter-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.juror-filter-select {
+  padding: 8px 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  font-size: 13px;
+  background: var(--card-bg);
+  min-width: 160px;
+}
+.juror-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 180px;
+}
+.juror-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray-500);
+}
+.juror-search-icon svg { width: 16px; height: 16px; }
+.juror-search-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 36px 0 36px;
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  font-size: 14px;
+  background: var(--card-bg);
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.juror-search-input:focus {
+  outline: none;
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 3px var(--blue-light);
+}
+.juror-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--gray-500);
+  cursor: pointer;
+  padding: 4px;
+}
+.juror-search-clear svg { width: 14px; height: 14px; }
+
+.juror-card {
+  background: var(--surface-bg);
+  border-radius: var(--surface-radius);
+  padding: 20px 22px;
+  box-shadow: var(--surface-shadow);
+  border: 1px solid var(--surface-border);
+  backdrop-filter: var(--surface-blur);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.juror-card-editing       { border: 1.5px solid #f5b97a !important; background: #fff1db !important; }
+.juror-card-all-submitted { border: 1.5px solid var(--green) !important; background: #effdf5 !important; }
+.juror-card-in-progress   { border: 1.5px solid #e6d28a !important; background: #fff9ea !important; }
+.juror-card-header  { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.juror-card-header > div:first-child { min-width: 0; }
+.juror-name         { font-size: 16px; font-weight: 700; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.juror-name-text    { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; line-height: 1.2; }
+.juror-name-icon    { display: inline-flex; align-items: center; justify-content: center; color: var(--gray-500); flex: 0 0 auto; }
+.juror-dept-inline  { vertical-align: baseline; }
+.juror-name-icon svg { width: 16px; height: 16px; }
+.juror-dept         { font-size: 13px; color: var(--gray-500); margin-bottom: 12px; }
+.juror-dept-inline  { font-size: 13px; color: var(--gray-500); font-weight: 400; margin-left: 4px; }
+.juror-meta         { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.juror-meta-editing { display: inline-flex; align-items: center; justify-content: flex-end; }
+.juror-editing-pill-mobile { display: none; }
+.juror-editing-pill-desktop { display: inline-flex; }
+.juror-last-submit       { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.juror-last-submit-label { font-size: 10px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.04em; }
+.juror-last-submit-time  { font-size: 12px; color: var(--gray-700); font-weight: 600; font-variant-numeric: tabular-nums; }
+.juror-progress-wrap     { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.juror-progress-bar-bg   { flex: 1; min-width: 0; height: 8px; background: var(--gray-200); border-radius: 999px; overflow: hidden; }
+.juror-progress-bar-fill { height: 100%; border-radius: 999px; transition: width 300ms; }
+.juror-progress-label    { font-size: 12px; font-weight: 700; color: var(--gray-500); min-width: 34px; text-align: right; flex-shrink: 0; }
+
+.juror-projects  { display: flex; flex-direction: column; gap: 6px; }
+.juror-row       { display: flex; align-items: flex-start; gap: 10px; min-width: 0; padding: 3px 0; }
+.juror-row       { align-items: center; }
+.juror-row-left  { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.juror-row-header-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.juror-row-header-line::-webkit-scrollbar { display: none; }
+.juror-row-name  {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-900);
+  white-space: nowrap;
+  line-height: 1.25;
+  margin-bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.juror-row-name-icon svg { width: 14px; height: 14px; color: #64748b; flex-shrink: 0; }
+.juror-row-name-text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.juror-row-desc     { font-size: 12px; color: var(--gray-500); white-space: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; line-height: 1.4; }
+.juror-row-students { font-size: 11px; color: var(--gray-500); white-space: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; line-height: 1.4; }
+.juror-row-desc::-webkit-scrollbar, .juror-row-students::-webkit-scrollbar { display: none; }
+.juror-score     { font-size: 15px; font-weight: 700; font-family: 'DM Mono', monospace; color: var(--blue); white-space: nowrap; flex-shrink: 0; }
+.juror-row-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.juror-row-right-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (min-width: 640px) {
+  .juror-row-right {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+}
+.juror-row-ts {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.juror-row-ts-icon svg { width: 12px; height: 12px; color: #94a3b8; }
+
+/* Juror header actions (StatusBadge + Reset PIN) */
+.juror-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.juror-header-actions .status-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  line-height: 1;
+}
+.juror-header-actions .juror-reset-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  line-height: 1;
+  margin-left: 0;
+}
+.juror-meta .juror-reset-pill {
+  align-self: flex-end;
+  margin-top: 6px;
+}
+
+/* ── Group accordion — JurorsTab-specific styles ─────────── */
+/* Shared base rules (.group-accordion-*) live in shared.css  */
+
+/* Juror tab accordion panel: indent + spacing */
+.juror-accordion-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 0 6px 2px;
+  margin-top: 0;
+}
+
+/* Row wrapper replaces direct .juror-row as the gap-child in .juror-projects */
+.juror-row-wrap {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0;
+}
+.juror-row-wrap .juror-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Matrix SVG icon alignment */
+.matrix-wrap svg { display: inline-block; vertical-align: middle; }
+
+/* PIN reset pill in juror cards */
+.juror-reset-pill {
+  margin-top: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  border-radius: 9999px;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.12s;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  box-shadow: none;
+}
+.juror-reset-pill svg { width: 12px; height: 12px; }
+.juror-meta .allow-edit-btn,
+.juror-meta .juror-reset-pill {
+  width: fit-content;
+  min-width: 0;
+  justify-content: center;
+}
+.juror-reset-pill:hover {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.28);
+  color: #0f172a;
+}
+.juror-reset-pill:active { transform: translateY(1px); }
+.juror-reset-pill:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.35);
+}
+.juror-reset-pill:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Allow Edit button (juror card) */
+.allow-edit-btn {
+  background: transparent;
+  border: 1px solid #f5b97a;
+  color: #b45309;
+  border-radius: 9999px;
+  padding: 2px 8px;
+  height: 28px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.allow-edit-btn:hover {
+  background: #fff4e5;
+  border-color: #f5b97a;
+}
+.allow-edit-btn.success {
+  background: #fff4e5;
+  border-color: #f5b97a;
+  color: #b45309;
+}
+.allow-edit-btn svg { width: 12px; height: 12px; }
+
+/* PIN reset centered modal */
+.pin-reset-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(3px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.pin-reset-modal-card {
+  background: #fff;
+  border-radius: 26px;
+  padding: 34px 32px;
+  width: min(440px, calc(100vw - 40px));
+  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.2);
+  text-align: center;
+  animation: pinResetFadeScale 0.18s ease;
+}
+.pin-reset-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 2px 0 6px;
+}
+.pin-reset-subtitle {
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.5;
+}
+.pin-reset-subtitle strong {
+  font-weight: 700;
+  color: #0f172a;
+}
+.pin-reset-name {
+  font-weight: 700;
+  color: #0f172a;
+}
+.pin-reset-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+.pin-reset-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+.pin-reset-actions .pin-reset-done {
+  width: fit-content;
+  min-width: 0;
+  height: 42px;
+  padding: 10px 32px;
+}
+.pin-reset-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand-600);
+  margin-bottom: 10px;
+}
+.pin-reset-icon--spin svg { animation: pinResetSpin 1s linear infinite; }
+.pin-reset-icon--pop { animation: pinResetPop 0.45s ease; }
+.pin-reset-icon.is-success { color: #16a34a; }
+.pin-reset-icon.is-error { color: #f97316; }
+
+@keyframes pinResetFadeScale {
+  from { opacity: 0; transform: scale(0.98); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes pinResetSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes pinResetPop {
+  0%   { transform: scale(0.92); opacity: 0.7; }
+  60%  { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* Editing indicator in admin header */
+.editing-indicator { color: #92400e; font-weight: 600; }
+

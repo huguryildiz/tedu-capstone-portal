@@ -1,0 +1,331 @@
+/* admin-matrix.css — Matrix tab: table, legend, controls, average row */
+
+/* ── Matrix tab ─────────────────────────────────────────────── */
+.matrix-wrap     { padding: 4px 0; }
+.matrix-subtitle {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 12px;
+  row-gap: 8px;
+}
+.matrix-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+.matrix-legend-row.legend-scroll-row {
+  position: relative;
+}
+.matrix-legend-row.legend-scroll-row::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 28px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(248,250,252,0), rgba(248,250,252,1));
+}
+.matrix-legend-scroll {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  white-space: nowrap;
+  scrollbar-width: none;
+  width: 100%;
+}
+.matrix-legend-scroll::-webkit-scrollbar { display: none; }
+.matrix-legend-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.matrix-legend-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  font-weight: 600;
+  margin-right: 2px;
+  flex: 0 0 auto;
+}
+.matrix-legend-count {
+  align-self: flex-end;
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+.matrix-icon-legend { color: #64748b; }
+.matrix-icon-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.matrix-icon-legend-item svg { width: 14px; height: 14px; }
+.matrix-legend-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.matrix-scroll-wrap {
+  border-radius: var(--surface-radius);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--surface-shadow);
+  background: var(--surface-bg);
+}
+.matrix-scroll   {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.matrix-scroll::-webkit-scrollbar { height: 10px; }
+.matrix-scroll::-webkit-scrollbar-track { background: transparent; }
+.matrix-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+.matrix-table    { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff; table-layout: fixed; }
+.matrix-table th {
+  background: #e5e7eb;
+  padding: 10px 12px;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid rgba(15,23,42,0.08);
+  border-right: 1px solid rgba(15,23,42,0.08);
+  white-space: nowrap;
+  text-align: center;
+  /* Sticky header */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.matrix-table th:hover .col-sort-label { color: #1d4ed8; }
+.matrix-corner   { text-align: left !important; }
+.matrix-table th.matrix-corner {
+  z-index: 210;
+  position: relative;
+}
+.matrix-corner {
+  position: relative;
+}
+@media (min-width: 769px) {
+  .matrix-corner { overflow: visible; }
+}
+.matrix-corner-head {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  justify-content: flex-start;
+}
+.matrix-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(15,23,42,0.08);
+  border-right: 1px solid rgba(15,23,42,0.08);
+  text-align: center;
+}
+/* Frozen first column */
+.matrix-table th:first-child,
+.matrix-table td:first-child {
+  position: sticky;
+  left: 0;
+  min-width: 220px;
+  max-width: 220px;
+  width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.matrix-table th:first-child {
+  z-index: 30;
+  background: #e5e7eb;
+  border-right-color: transparent;
+  box-shadow: 8px 0 16px rgba(0,0,0,0.06);
+}
+.matrix-table td:first-child {
+  z-index: 20;
+  background: #fff;
+  border-right-color: transparent;
+  box-shadow: 8px 0 16px rgba(0,0,0,0.06);
+}
+.matrix-table tfoot td:first-child { background: #fff5f5; }
+.matrix-table th:last-child,
+.matrix-table td:last-child { border-right: none; }
+.matrix-table tfoot tr:last-child td { border-bottom: none; }
+.matrix-juror {
+  text-align: left !important;
+  font-weight: 500;
+  color: #0f172a;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.matrix-juror-name {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 auto;
+}
+.matrix-juror-name-scroll {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.matrix-juror-name-scroll::-webkit-scrollbar { display: none; }
+.matrix-juror-dept  { font-size: 11px; color: #94a3b8; font-weight: 400; }
+.matrix-progress-cell { white-space: nowrap; }
+.matrix-progress-bar-wrap { display: inline-block; width: 60px; height: 6px; background: #e2e8f0; border-radius: 999px; overflow: hidden; vertical-align: middle; margin-right: 6px; }
+.matrix-progress-bar      { height: 100%; background: #22c55e; border-radius: 999px; }
+.matrix-progress-label    { font-size: 12px; font-weight: 600; color: #475569; vertical-align: middle; }
+
+/* Matrix legend dots */
+.matrix-legend-item { display: flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+.matrix-legend-dot  {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+}
+.matrix-status-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0;
+  flex-shrink: 0;
+}
+.matrix-status-icon svg { width: 14px; height: 14px; }
+.matrix-status-icon.submitted { color: #16a34a; }
+.matrix-status-icon.in_progress { color: #ca8a04; }
+.matrix-status-icon.completed { color: #15803d; }
+.matrix-status-icon.editing { color: #d97706; }
+.matrix-status-icon.not_started { color: #cbd5e1; }
+.completed-dot  { background: #dcfce7; }
+.submitted-dot  { background: #ecfdf3; }
+.progress-dot   { background: #fef9c3; }
+.empty-dot      { background: #f8fafc; }
+.group-dot      { background: #93c5fd; }
+
+@media (hover: none) and (pointer: coarse) {
+  .matrix-juror-name-scroll {
+    overflow-x: auto;
+    text-overflow: clip;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .matrix-juror-name-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    text-overflow: clip;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    scroll-behavior: smooth;
+  }
+  .matrix-juror-name-scroll::-webkit-scrollbar { display: none; }
+  .matrix-juror-name-scroll:hover { cursor: ew-resize; }
+}
+
+/* Column sort button inside group <th> */
+.matrix-col-sort {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.matrix-col-sort:hover { color: var(--brand-600); }
+.matrix-col-sort .sort-icon {
+  font-size: 10px;
+  color: var(--gray-500);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.matrix-col-sort.active {
+  color: var(--brand-600);
+  border: none;
+  background: none;
+  box-shadow: none;
+  padding: 0;
+}
+.matrix-col-sort.active .sort-icon {
+  color: var(--brand-600);
+  background: var(--blue-light);
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px var(--brand-600);
+}
+.sort-active-box { color: inherit; }
+.details-col-label.filtered,
+.col-sort-label.filtered {
+  color: var(--brand-600);
+  font-weight: 700;
+}
+.icon-active-box {
+  color: var(--brand-600);
+  background: var(--blue-light);
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px var(--brand-600);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-active-box svg { color: var(--brand-600); }
+
+/* In-progress badge inside matrix cell */
+.matrix-ip-badge {
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--amber-light);
+  color: var(--amber);
+  border-radius: 4px;
+  padding: 1px 5px;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* Matrix Average row */
+.matrix-avg-row   { background: #fff5f5; }
+.matrix-avg-label { color: #a16207 !important; font-weight: 700 !important; }
+.matrix-avg-cell  { color: #0f172a; font-weight: 600; font-size: 13px; }
+
+
+
+/* ── Matrix info note ────────────────────────────────────────── */
+.matrix-info-note {
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+

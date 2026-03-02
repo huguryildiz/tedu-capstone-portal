@@ -7,27 +7,7 @@
 import { useState } from "react";
 import { PROJECTS, CRITERIA } from "../config";
 import { HomeIcon, ChevronDownIcon, CheckIcon, ClockIcon, BadgeInfoIcon } from "../shared/Icons";
-
-function formatShortTs(raw) {
-  if (!raw || raw === "—") return "—";
-  const s = String(raw).trim();
-  const storedSlash = /^(\d{2})\/(\d{2})\/(\d{4} \d{2}:\d{2})(?::\d{2})?$/.exec(s);
-  if (storedSlash) return `${storedSlash[1]}.${storedSlash[2]}.${storedSlash[3]}`;
-  const storedDot = /^(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2})(?::\d{2})?$/.exec(s);
-  if (storedDot) return storedDot[1];
-  try {
-    const d = new Date(s);
-    if (isNaN(d.getTime())) return s;
-    return new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Europe/Istanbul",
-      day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
-      hour12: false,
-    }).format(d).replace(",", "").replace(/\//g, ".");
-  } catch {
-    return s;
-  }
-}
+import { formatTs as formatShortTs } from "../admin/utils";
 
 function groupTotal(scores, pid) {
   return CRITERIA.reduce((s, c) => s + (parseInt(scores[pid]?.[c.id], 10) || 0), 0);

@@ -26,7 +26,10 @@ export function useOutsidePointerDown(isOpen, targets, onClose) {
   }, [isOpen, targets, onClose]);
 }
 
-// ── Filter popover portal ────────────────────────────────────
+// ── Filter popover portal ─────────────────────────────────────
+// Renders a floating popover anchored to a button rect.
+// mode="anchor" → positioned below the anchor element.
+// mode="center" → fixed to viewport center (used by date range picker).
 export function FilterPopoverPortal({ open, anchorRect, anchorEl, onClose, className, contentKey, mode = "anchor", children }) {
   const popRef = useRef(null);
   const [style, setStyle] = useState({ left: 0, top: 0, visibility: "hidden" });
@@ -47,21 +50,17 @@ export function FilterPopoverPortal({ open, anchorRect, anchorEl, onClose, class
       const popH = pop.offsetHeight;
       const viewportW = window.innerWidth;
       const viewportH = window.innerHeight;
-
       let left = anchorRect.left;
       left = Math.min(left, viewportW - popW - margin);
       left = Math.max(margin, left);
-
       let top = anchorRect.bottom + 6;
       if (top + popH + margin > viewportH) {
         const above = anchorRect.top - popH - 6;
         if (above >= margin) top = above;
         else top = Math.max(margin, viewportH - popH - margin);
       }
-
       setStyle({ left, top, transform: "none", visibility: "visible" });
     };
-
     measureAndPlace();
     window.addEventListener("resize", measureAndPlace);
     window.addEventListener("orientationchange", measureAndPlace);

@@ -38,7 +38,13 @@ import DashboardTab  from "./admin/DashboardTab";
 import DetailsTab    from "./admin/DetailsTab";
 import JurorsTab     from "./admin/JurorsTab";
 import MatrixTab     from "./admin/MatrixTab";
-import "./styles/admin.css";
+import "./styles/admin-layout.css";
+import "./styles/admin-summary.css";
+import "./styles/admin-details.css";
+import "./styles/admin-jurors.css";
+import "./styles/admin-matrix.css";
+import "./styles/admin-dashboard.css";
+import "./styles/admin-responsive.css";
 
 // ── Constants ─────────────────────────────────────────────────
 const CRITERIA_LIST = CRITERIA.map((c) => ({

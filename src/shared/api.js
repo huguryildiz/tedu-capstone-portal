@@ -8,7 +8,8 @@
 //
 // Token model:
 //   createPin / verifyPin → server returns token.
-//   Token stored in sessionStorage, injected automatically.
+//   Token stored in-memory only (let _token). Clears on every
+//   page refresh — juror must re-enter PIN after reload.
 //   All write endpoints + token-gated reads require a valid token.
 //
 // apiSecret:

@@ -130,7 +130,7 @@ function hsl2hex(h, s, l) {
 export const jurorBg  = (n) => hsl2hex(hashInt(n || "?") % 360, 55, 95);
 export const jurorDot = (n) => hsl2hex(hashInt(n || "?") % 360, 65, 55);
 
-// ── Export helpers ────────────────────────────────────────────
+// ── Excel (.xlsx) export ──────────────────────────────────────
 function exportScoreValue(v) {
   if (v === "" || v === null || v === undefined) return "";
   if (typeof v === "string" && v.trim() === "") return "";
@@ -138,7 +138,6 @@ function exportScoreValue(v) {
   return v;
 }
 
-// ── Excel (.xlsx) export ──────────────────────────────────────
 export async function exportXLSX(rows) {
   const XLSX = await import("xlsx");
   const headers = [

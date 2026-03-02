@@ -22,7 +22,6 @@ import {
   CircleIcon,
 } from "../shared/Icons";
 
-// ── Portal popover (same component as DetailsTab) ─────────────
 // ── Cell helpers ──────────────────────────────────────────────
 
 const cellStyle = (entry) => {

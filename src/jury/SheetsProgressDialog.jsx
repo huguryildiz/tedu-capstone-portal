@@ -30,30 +30,7 @@ import {
   CircleIcon,
 } from "../shared/Icons";
 import MinimalLoaderOverlay from "../shared/MinimalLoaderOverlay";
-
-function formatShortTs(ts) {
-  if (!ts || ts === "—") return "—";
-  const s = String(ts).trim();
-  // Already stored as DD.MM.YYYY HH:mm[:ss] — strip seconds for display.
-  const stored = /^(\d{2}\.\d{2}\.\d{4} \d{2}:\d{2})(?::\d{2})?$/.exec(s);
-  if (stored) return stored[1];
-  // Legacy slash format DD/MM/YYYY HH:mm[:ss] — strip seconds and convert to dots.
-  const storedSlash = /^(\d{2})\/(\d{2})\/(\d{4} \d{2}:\d{2})(?::\d{2})?$/.exec(s);
-  if (storedSlash) return `${storedSlash[1]}.${storedSlash[2]}.${storedSlash[3]}`;
-  // ISO string fallback — parse and format without seconds in Istanbul timezone.
-  try {
-    const d = new Date(s);
-    if (isNaN(d.getTime())) return s;
-    return new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Europe/Istanbul",
-      day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
-      hour12: false,
-    }).format(d).replace(",", "").replace(/\//g, ".");
-  } catch {
-    return s;
-  }
-}
+import { formatTs as formatShortTs } from "../admin/utils";
 
 // Status label + colour for each row returned by myscores.
 function rowStatusChip(status) {
