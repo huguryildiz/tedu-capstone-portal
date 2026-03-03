@@ -4,7 +4,6 @@
 // ============================================================
 
 import { useEffect, useMemo, useState } from "react";
-import { PROJECT_LIST } from "../config";
 import { cmp, exportXLSX, formatTs, tsToMillis, rowKey } from "./utils";
 import { readSection, writeSection } from "./persist";
 import { StatusBadge, FilterPopoverPortal } from "./components";
@@ -33,7 +32,8 @@ const SCORE_COLS = [
 ];
 
 // jurors prop: { key, name, dept }[]
-export default function DetailsTab({ data, jurors }) {
+// groups prop: { id (uuid), groupNo, label }[]
+export default function DetailsTab({ data, jurors, groups: groupsProp = [], semesterName = "", summaryData = [] }) {
   const VALID_STATUSES = ["in_progress", "submitted"];
   const VALID_SORT_DIRS = ["asc", "desc"];
   const [filterJuror,    setFilterJuror]    = useState(() => { const s = readSection("details"); return typeof s.filterJuror  === "string" ? s.filterJuror  : "ALL"; });
@@ -55,9 +55,8 @@ export default function DetailsTab({ data, jurors }) {
   ));
 
   const groups = useMemo(
-    () => PROJECT_LIST.map((p) => ({ id: p.id, label: `Group ${p.id}`, name: p.name }))
-      .sort((a, b) => a.id - b.id),
-    []
+    () => [...groupsProp].sort((a, b) => (a.groupNo ?? 0) - (b.groupNo ?? 0)),
+    [groupsProp]
   );
   const deptOptions = useMemo(() => {
     const map = new Map();
@@ -238,7 +237,7 @@ export default function DetailsTab({ data, jurors }) {
     }
     if (filterStatuses.size > 0) {
       list = list.filter((r) => {
-        const isSubmittedStatus = r.status === "group_submitted" || r.status === "all_submitted";
+        const isSubmittedStatus = r.status === "submitted" || r.status === "group_submitted" || r.status === "all_submitted";
         const isInProgressStatus = r.status === "in_progress";
 
         if (filterStatuses.has("submitted") && isSubmittedStatus) return true;
@@ -548,7 +547,7 @@ export default function DetailsTab({ data, jurors }) {
             </button>
           </>
         )}
-        <button className="xlsx-export-btn" onClick={() => { void exportXLSX(rows); }}>
+        <button className="xlsx-export-btn" onClick={() => { void exportXLSX(rows, { semesterName, summaryData }); }}>
           <DownloadIcon />
           <span className="export-label-long">Export Excel</span>
           <span className="export-label-short">Excel</span>
@@ -723,7 +722,8 @@ export default function DetailsTab({ data, jurors }) {
               </tr>
             )}
             {rows.map((row, i) => {
-              const grp = PROJECT_LIST.find((p) => p.id === row.projectId);
+              const grp = groups.find((g) => g.id === row.projectId);
+              const grpLabel = grp?.label || `Group ${row.groupNo ?? ""}`;
               const isIP = row.status === "in_progress";
               return (
                 <tr
@@ -735,10 +735,10 @@ export default function DetailsTab({ data, jurors }) {
                   <td className="cell-group" style={{ whiteSpace: "nowrap" }}>
                     <div
                       className="cell-group-wrap"
-                      title={`Group ${row.projectId}`}
+                      title={grpLabel}
                       style={{ cursor: "default" }}
                     >
-                      <strong className="cell-group-title">Group {row.projectId}</strong>
+                      <strong className="cell-group-title">{grpLabel}</strong>
                     </div>
                   </td>
                   <td style={{ fontSize: 12, color: "#475569", whiteSpace: "nowrap" }}>

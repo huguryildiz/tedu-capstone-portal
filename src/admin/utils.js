@@ -4,11 +4,7 @@
 // No React, no side-effects — safe to import anywhere.
 // ============================================================
 
-import { PROJECT_LIST, CRITERIA } from "../config";
-
-const PROJECT_MAP = new Map(
-  PROJECT_LIST.map((p) => [p.id, { desc: p.desc ?? "", students: p.students ?? [] }])
-);
+import { CRITERIA } from "../config";
 
 // ── Numeric coercion ──────────────────────────────────────────
 // Strips surrounding quotes (Sheets sometimes wraps numbers in
@@ -138,33 +134,51 @@ function exportScoreValue(v) {
   return v;
 }
 
-export async function exportXLSX(rows) {
+export async function exportXLSX(rows, { semesterName = "", summaryData = [] } = {}) {
   const XLSX = await import("xlsx");
+
+  // Build projectId → group_students lookup from summaryData
+  const studentsMap = new Map(
+    (summaryData || []).map((p) => [p.id, p.students ?? ""])
+  );
+
   const headers = [
-    "Juror Name", "Department / Institution", "Timestamp",
-    "Group Name", "Group Desc", "Students",
-    "Technical (30)", "Written (30)", "Oral (30)", "Teamwork (10)",
-    "Total (100)", "Comments",
+    "semester",
+    "group_no",
+    "project_title",
+    "group_students",
+    "juror_name",
+    "juror_inst",
+    "technical",
+    "written",
+    "oral",
+    "teamwork",
+    "total",
+    "submitted_at",
+    "comment",
   ];
-  const data = rows.map((r) => {
-    const grp = PROJECT_MAP.get(r.projectId) || { desc: "", students: [] };
-    return [
-      r.juryName    ?? "",
-      r.juryDept    ?? "",
-      r.timestamp   ?? "",
-      r.projectName ?? "",
-      grp.desc,
-      grp.students.join(" · "),
-      exportScoreValue(r.technical),
-      exportScoreValue(r.design),
-      exportScoreValue(r.delivery),
-      exportScoreValue(r.teamwork),
-      exportScoreValue(r.total),
-      r.comments  ?? "",
-    ];
-  });
+
+  const data = rows.map((r) => [
+    semesterName,
+    r.groupNo     ?? "",
+    r.projectName ?? "",
+    studentsMap.get(r.projectId) ?? "",
+    r.juryName    ?? "",
+    r.juryDept    ?? "",
+    exportScoreValue(r.technical),
+    exportScoreValue(r.design),    // written in DB
+    exportScoreValue(r.delivery),  // oral in DB
+    exportScoreValue(r.teamwork),
+    exportScoreValue(r.total),
+    r.timestamp   ?? "",           // submitted_at
+    r.comments    ?? "",
+  ]);
+
   const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
-  ws["!cols"] = [20, 22, 18, 20, 24, 28, 14, 12, 10, 13, 10, 30].map((w) => ({ wch: w }));
+  // semester(A), group_no(B), project_title(C), group_students(D),
+  // juror_name(E), juror_inst(F), technical(G), written(H), oral(I),
+  // teamwork(J), total(K), submitted_at(L), comment(M)
+  ws["!cols"] = [18, 8, 32, 42, 24, 26, 11, 9, 7, 11, 8, 24, 32].map((w) => ({ wch: w }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Jury Evaluations");
   const now  = new Date();
@@ -179,8 +193,8 @@ export async function exportXLSX(rows) {
 const countAdminFilledCriteria = (rows) =>
   rows.reduce((t, r) => t + CRITERIA.filter((c) => r[c.id] > 0).length, 0);
 
-export const adminCompletionPct = (rows) => {
-  const total = PROJECT_LIST.length * CRITERIA.length;
+export const adminCompletionPct = (rows, totalProjects) => {
+  const total = (totalProjects || 0) * CRITERIA.length;
   return total === 0 ? 0 : Math.round((countAdminFilledCriteria(rows) / total) * 100);
 };
 

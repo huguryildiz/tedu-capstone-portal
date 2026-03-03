@@ -1,14 +1,14 @@
 // src/admin/JurorsTab.jsx
 
 import { useState, useMemo, useEffect } from "react";
-import { PROJECT_LIST } from "../config";
 import { formatTs, adminCompletionPct, cmp } from "./utils";
 import { readSection, writeSection } from "./persist";
 import { StatusBadge } from "./components";
-import { CircleCheckBigIcon, UsersRoundIcon, BadgeInfoIcon, ClockIcon, UserCheckIcon, ChevronDownIcon, FolderKanbanIcon, PencilIcon, KeyIcon } from "../shared/Icons";
+import { CircleCheckBigIcon, ClockIcon, UserCheckIcon, ChevronDownIcon, FolderKanbanIcon, PencilIcon } from "../shared/Icons";
 
-// jurors prop: { key, name, dept, jurorId }[]
-export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
+// jurorStats prop: { key, name, dept, jurorId, rows, overall, latestRow }[]
+// groups prop: { id (uuid), groupNo, label }[]
+export default function JurorsTab({ jurorStats, groups = [] }) {
   const [selectedJurorId, setSelectedJurorId] = useState(() => {
     const s = readSection("jurors");
     return typeof s.selectedJurorId === "string" ? s.selectedJurorId : "";
@@ -17,7 +17,7 @@ export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
   useEffect(() => {
     writeSection("jurors", { selectedJurorId });
   }, [selectedJurorId]);
-  const [allowEditState, setAllowEditState] = useState({});
+
   const [expandedGroups, setExpandedGroups] = useState(new Set());
 
   function toggleGroup(groupKey) {
@@ -40,9 +40,7 @@ export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
   }, [jurorStats]);
 
   const filtered = useMemo(() => {
-    let list = jurorStats
-      .slice()
-      .sort((a, b) => cmp(a.jury, b.jury));
+    let list = jurorStats.slice().sort((a, b) => cmp(a.jury, b.jury));
     if (selectedJurorId) {
       list = list.filter((s) => (s.jurorId || s.latestRow?.jurorId || "") === selectedJurorId);
     }
@@ -76,8 +74,8 @@ export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
         {filtered.map((stat) => {
           const { key, jury, rows, overall, latestRow } = stat;
 
-          // Progress bar: matches Jury Form sticky header (criteria filled / total criteria).
-          const pct = adminCompletionPct(rows);
+          // Progress bar using groups prop for total count
+          const pct = adminCompletionPct(rows, groups.length);
 
           const barColor =
             pct === 100 ? "#22c55e" :
@@ -85,63 +83,45 @@ export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
             pct > 33    ? "#eab308" :
             pct > 0     ? "#f97316" : "#e2e8f0";
 
-          const isEditing = rows.some((r) => r.editingFlag === "editing");
-          const groups = PROJECT_LIST.map((p) => {
-            const row = rows.find((r) => r.projectId === p.id);
+          // Completion check: are all projects submitted?
+          const grpStatuses = groups.map((g) => {
+            const row = rows.find((r) => r.projectId === g.id);
             const normalizedStatus =
-              row?.status === "group_submitted" || row?.status === "all_submitted"
-                ? "submitted"
-                : row?.status || "not_started";
-            return { id: p.id, status: normalizedStatus };
+              row?.status === "submitted" ? "submitted" : (row?.status || "not_started");
+            return { id: g.id, status: normalizedStatus };
           });
           const isCompleted =
-            groups.length > 0 &&
-            groups.every((g) => g.status === "submitted");
+            grpStatuses.length > 0 && grpStatuses.every((g) => g.status === "submitted");
 
-          const statusClass = isEditing
-            ? "juror-card-editing"
-            : overall === "all_submitted" ? "juror-card-all-submitted"
-            : overall === "in_progress"   ? "juror-card-in-progress"
-            : "";
+          const statusClass =
+            overall === "all_submitted" ? "juror-card-all-submitted" :
+            overall === "in_progress"   ? "juror-card-in-progress"   : "";
 
           return (
             <div key={key} className={`juror-card ${statusClass}`}>
-
-                <div className="juror-card-header">
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div className="juror-name" style={{ wordBreak: "break-word" }}>
-                      <span className="juror-name-icon" aria-hidden="true"><UserCheckIcon /></span>
-                      <span className="juror-name-text">
-                        {jury}
-                        {latestRow?.juryDept && (
-                          <span className="juror-dept-inline"> ({latestRow.juryDept})</span>
-                        )}
-                      </span>
-                    </div>
-                    <div className="juror-header-actions">
-                    {isEditing ? (
-                      <StatusBadge variant="editing is-compact juror-editing-pill-mobile" icon={<PencilIcon />}>Editing</StatusBadge>
-                    ) : (
-                      isCompleted ? (
-                        <StatusBadge
-                          variant="completed"
-                          icon={<CircleCheckBigIcon />}
-                        >
-                          Completed
-                        </StatusBadge>
-                      ) : (
-                        <StatusBadge status={overall} />
-                      )
-                    )}
-                    </div>
+              <div className="juror-card-header">
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="juror-name" style={{ wordBreak: "break-word" }}>
+                    <span className="juror-name-icon" aria-hidden="true"><UserCheckIcon /></span>
+                    <span className="juror-name-text">
+                      {jury}
+                      {latestRow?.juryDept && (
+                        <span className="juror-dept-inline"> ({latestRow.juryDept})</span>
+                      )}
+                    </span>
                   </div>
+                  <div className="juror-header-actions">
+                    {isCompleted ? (
+                      <StatusBadge variant="completed" icon={<CircleCheckBigIcon />}>
+                        Completed
+                      </StatusBadge>
+                    ) : (
+                      <StatusBadge status={overall} />
+                    )}
+                  </div>
+                </div>
 
                 <div className="juror-meta">
-                  {isEditing && (
-                    <div className="juror-meta-editing">
-                      <StatusBadge variant="editing is-compact juror-editing-pill-desktop" icon={<PencilIcon />}>Editing</StatusBadge>
-                    </div>
-                  )}
                   {latestRow?.timestamp && (
                     <div className="juror-last-submit">
                       <span className="juror-last-submit-label">Last activity</span>
@@ -149,30 +129,6 @@ export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
                         {formatTs(latestRow?.timestamp)}
                       </span>
                     </div>
-                  )}
-                  {onAllowEdit && overall === "all_submitted" && !isEditing && allowEditState[key] !== "ok" && (
-                    <button
-                      className={`allow-edit-btn${allowEditState[key] === "ok" ? " success" : ""}`}
-                      title={`Unlock ${jury} for editing`}
-                      onClick={async () => {
-                        setAllowEditState((prev) => ({ ...prev, [key]: "loading" }));
-                        const json = await onAllowEdit(jury, latestRow?.juryDept || "", latestRow?.jurorId || "");
-                        setAllowEditState((prev) => ({ ...prev, [key]: json?.status === "ok" ? "ok" : "error" }));
-                      }}
-                    >
-                      <PencilIcon />
-                      Unlock
-                    </button>
-                  )}
-                  {onPinReset && (
-                    <button
-                      className="juror-reset-pill"
-                      title={`Reset PIN for ${jury}`}
-                      onClick={() => onPinReset(jury, latestRow?.juryDept || "", latestRow?.jurorId || "")}
-                    >
-                      <KeyIcon />
-                      Reset PIN
-                    </button>
                   )}
                 </div>
               </div>
@@ -188,34 +144,23 @@ export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
                 <span className="juror-progress-label">{pct}%</span>
               </div>
 
-              {/* Per-group rows — accordion */}
+              {/* Per-group rows */}
               <div className="juror-projects">
                 {rows
                   .slice()
-                  .sort((a, b) => a.projectId - b.projectId)
+                  .sort((a, b) => (a.groupNo ?? 0) - (b.groupNo ?? 0))
                   .map((d) => {
-                    const grp = PROJECT_LIST.find((p) => p.id === d.projectId);
+                    const grp = groups.find((g) => g.id === d.projectId);
                     const groupKey = `${key}-${d.projectId}`;
-                    const isExpanded = expandedGroups.has(groupKey);
                     const panelId = `juror-group-panel-${groupKey}`;
-                    const hasDetails = !!grp?.desc || grp?.students?.length > 0;
                     return (
                       <div key={groupKey} className="juror-row-wrap">
-                        {/* Clickable row header */}
                         <div
                           className="juror-row group-accordion-header"
                           role="button"
-                          tabIndex={hasDetails ? 0 : -1}
-                          aria-expanded={isExpanded}
+                          tabIndex={-1}
                           aria-controls={panelId}
-                          onClick={() => { if (hasDetails) toggleGroup(groupKey); }}
-                          onKeyDown={(e) => {
-                            if ((e.key === "Enter" || e.key === " ") && hasDetails) {
-                              e.preventDefault();
-                              toggleGroup(groupKey);
-                            }
-                          }}
-                          style={{ cursor: hasDetails ? "pointer" : "default" }}
+                          style={{ cursor: "default" }}
                         >
                           {/* LEFT: identity column */}
                           <div className="juror-row-left">
@@ -223,14 +168,9 @@ export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
                               <span className="juror-row-name">
                                 <span className="juror-row-name-icon" aria-hidden="true"><FolderKanbanIcon /></span>
                                 <span className="juror-row-name-text">
-                                  {grp?.name || `Group ${d.projectId}`}
+                                  {grp?.label || `Group ${d.groupNo ?? d.projectId}`}
                                 </span>
                               </span>
-                              {hasDetails && (
-                                <span className={`group-accordion-chevron${isExpanded ? " open" : ""}`}>
-                                  <ChevronDownIcon />
-                                </span>
-                              )}
                             </div>
                           </div>
                           {/* RIGHT: KPI stack */}
@@ -243,7 +183,7 @@ export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
                             )}
                             <div className="juror-row-right-meta">
                               <StatusBadge status={d.status} />
-                              {(d.status === "all_submitted" || d.status === "group_submitted") && (
+                              {d.status === "submitted" && (
                                 <span
                                   className="juror-score"
                                   title="/ 100"
@@ -253,27 +193,6 @@ export default function JurorsTab({ jurorStats, onPinReset, onAllowEdit }) {
                                 </span>
                               )}
                             </div>
-                          </div>
-                        </div>
-
-                        {/* Expandable panel */}
-                        <div
-                          id={panelId}
-                          className={`group-accordion-panel${isExpanded ? " open" : ""}`}
-                        >
-                          <div className="group-accordion-panel-inner juror-accordion-inner">
-                            {grp?.desc && (
-                              <span className="juror-row-desc group-card-desc">
-                                <span className="group-card-desc-icon" aria-hidden="true"><BadgeInfoIcon /></span>
-                                <span className="group-card-desc-text">{grp.desc}</span>
-                              </span>
-                            )}
-                            {grp?.students?.length > 0 && (
-                              <span className="juror-row-students group-card-students">
-                                <span className="group-card-students-icon" aria-hidden="true"><UsersRoundIcon /></span>
-                                <span className="group-card-students-text">{grp.students.join(" · ")}</span>
-                              </span>
-                            )}
                           </div>
                         </div>
                       </div>

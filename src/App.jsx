@@ -40,7 +40,7 @@ export default function App() {
   const [adminInput,     setAdminInput]     = useState("");
   const [adminAuthError, setAdminAuthError] = useState("");
   const [adminShowPass,  setAdminShowPass]  = useState(false);
-
+  
   function handleAdminLogin() {
     const pass = adminInput.trim();
     if (!pass) { setAdminAuthError("Please enter the admin password."); return; }
@@ -57,6 +57,8 @@ export default function App() {
     adminPassRef.current = "";
     setAdminAuthError(msg || "Authentication failed.");
   }
+
+  
 
   // ── Jury form ─────────────────────────────────────────────
   if (page === "jury") {

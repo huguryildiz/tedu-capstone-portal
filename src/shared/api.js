@@ -1,108 +1,20 @@
 // src/shared/api.js
 // ============================================================
-// Single source of truth for all GAS communication.
+// All backend communication via Supabase RPCs.
+// No GAS URL, no fire-and-forget, no session tokens.
 //
-// generateId(name, dept)
-//   Deterministic 8-hex-char jurorId via djb2 hash.
-//   Same name+dept → same ID on every device/session.
+// Criteria field name mapping (config.js → DB):
+//   config.js ids : technical | design   | delivery | teamwork
+//   DB columns    : technical | written  | oral     | teamwork
 //
-// Token model:
-//   createPin / verifyPin → server returns token.
-//   Token stored in-memory only (let _token). Clears on every
-//   page refresh — juror must re-enter PIN after reload.
-//   All write endpoints + token-gated reads require a valid token.
-//
-// apiSecret:
-//   Shared secret read from VITE_API_SECRET env var.
-//   Sent as ?secret=X on public PIN endpoints (checkPin,
-//   createPin, verifyPin) so the GAS URL alone isn't enough
-//   to call the API.
+// Mapping is applied ONLY in this file at the API boundary.
+// All UI components and useJuryState continue to use config.js ids.
 // ============================================================
 
-import { APP_CONFIG, CRITERIA } from "../config";
+import { supabase } from "../lib/supabaseClient";
+import { CRITERIA } from "../config";
 
-const SCRIPT_URL = APP_CONFIG?.scriptUrl;
-const API_SECRET = APP_CONFIG?.apiSecret || "";
-
-// ── Deterministic juror ID ────────────────────────────────────
-// djb2 hash of norm(name) + "__" + norm(dept), returns 8 hex chars.
-export function generateId(name, dept) {
-  const input = name.trim().toLowerCase() + "__" + dept.trim().toLowerCase();
-  let hash = 5381;
-  for (let i = 0; i < input.length; i++) {
-    hash = ((hash << 5) + hash) ^ input.charCodeAt(i);
-    hash = hash >>> 0; // keep 32-bit unsigned
-  }
-  return hash.toString(16).padStart(8, "0");
-}
-
-// ── Token storage (in-memory — cleared on every page refresh) ──
-// Intentionally NOT persisted to sessionStorage or localStorage.
-// After a page refresh the token is gone and the juror must re-enter
-// their PIN. Sheets is the single source of truth; PIN re-auth is cheap.
-let _token = "";
-
-export function storeToken(token) { _token = token; }
-export function getToken()        { return _token; }
-export function clearToken()      { _token = ""; }
-
-// ── Fire-and-forget POST ──────────────────────────────────────
-export async function postToSheet(body) {
-  if (!SCRIPT_URL) return;
-  const token = getToken();
-  try {
-    await fetch(SCRIPT_URL, {
-      method:  "POST",
-      mode:    "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ ...body, token }),
-    });
-  } catch (_) {}
-}
-
-// ── Authenticated GET ─────────────────────────────────────────
-export async function getFromSheet(params) {
-  if (!SCRIPT_URL) throw new Error("scriptUrl is not configured in config.js.");
-  const qs  = new URLSearchParams(params).toString();
-  const res = await fetch(`${SCRIPT_URL}?${qs}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const raw = (await res.text()).trim();
-  if (raw.toLowerCase().startsWith("<html")) {
-    throw new Error("Received HTML from Apps Script — check your deployment URL.");
-  }
-  try {
-    return JSON.parse(raw);
-  } catch {
-    throw new Error("Apps Script returned invalid JSON.");
-  }
-}
-
-// ── Token-gated GET ───────────────────────────────────────────
-export async function getFromSheetAuth(params) {
-  return getFromSheet({ ...params, token: getToken() });
-}
-
-// ── Row builder ───────────────────────────────────────────────
-// Column order sent to GAS must match the sheet layout:
-//   technical, design (written), delivery (oral), teamwork
-export function buildRow(juryName, juryDept, jurorId, scores, comments, project, status) {
-  return {
-    juryName,
-    juryDept,
-    jurorId,
-    timestamp:   new Date().toISOString(),
-    projectId:   project.id,
-    projectName: project.name,
-    technical:   scores[project.id]?.technical ?? null,
-    design:      scores[project.id]?.design    ?? null,
-    delivery:    scores[project.id]?.delivery  ?? null,
-    teamwork:    scores[project.id]?.teamwork  ?? null,
-    total:       calcRowTotal(scores, project.id),
-    comments:    comments[project.id] || "",
-    status,
-  };
-}
-
+// ── calcRowTotal (kept — used in EvalStep / DoneStep) ─────────
 export function calcRowTotal(scores, pid) {
   return CRITERIA.reduce((s, c) => {
     const v = scores[pid]?.[c.id];
@@ -110,54 +22,200 @@ export function calcRowTotal(scores, pid) {
   }, 0);
 }
 
-// ── PIN API ───────────────────────────────────────────────────
+// ── Semester RPCs ──────────────────────────────────────────────
 
-export async function checkPin(jurorId) {
-  return getFromSheet({ action: "checkPin", jurorId, secret: API_SECRET });
+export async function listSemesters() {
+  const { data, error } = await supabase.rpc("rpc_list_semesters");
+  if (error) throw error;
+  return data || [];
 }
 
-export async function createPin(jurorId, juryName, juryDept) {
-  return getFromSheet({
-    action: "createPin",
-    jurorId,
-    juryName: juryName.trim(),
-    juryDept: juryDept.trim(),
-    secret:   API_SECRET,
+export async function getActiveSemester() {
+  const { data, error } = await supabase.rpc("rpc_get_active_semester");
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
+// ── Juror auth ─────────────────────────────────────────────────
+// Returns { juror_id, juror_name, juror_inst } or null if PIN invalid.
+export async function jurorLogin(pin) {
+  const { data, error } = await supabase.rpc("rpc_juror_login", {
+    pin: String(pin).trim(),
   });
+  if (error) throw error;
+  return data?.[0] || null;
 }
 
-export async function verifyPin(jurorId, pin) {
-  return getFromSheet({
-    action:  "verifyPin",
-    jurorId,
-    pin:     String(pin).trim(),
-    secret:  API_SECRET,
+// ── Project listing ────────────────────────────────────────────
+// Returns projects for a semester with this juror's existing scores.
+// DB column names are normalized back to config.js criterion ids here.
+export async function listProjects(semesterId, jurorId) {
+  const { data, error } = await supabase.rpc("rpc_list_projects", {
+    p_semester_id: semesterId,
+    p_juror_id:    jurorId,
   });
+  if (error) throw error;
+
+  return (data || []).map((row) => ({
+    project_id:     row.project_id,
+    group_no:       row.group_no,
+    project_title:  row.project_title,
+    group_students: row.group_students || "",
+    submitted_at:   row.submitted_at,
+    // Normalize DB column names → config.js criterion ids
+    scores: {
+      technical: row.technical ?? null,
+      design:    row.written   ?? null,   // written  → design
+      delivery:  row.oral      ?? null,   // oral     → delivery
+      teamwork:  row.teamwork  ?? null,
+    },
+    comment: row.comment || "",
+    total:   row.total   ?? null,
+  }));
 }
 
-// ── Juror data fetchers (token-gated) ─────────────────────────
+// ── Score upsert ───────────────────────────────────────────────
+// Accepts scores keyed by config.js ids.
+// Maps design→p_written and delivery→p_oral before calling RPC.
+// Returns computed total integer (from DB trigger).
+export async function upsertScore(semesterId, projectId, jurorId, scores, comment) {
+  const { data, error } = await supabase.rpc("rpc_upsert_score", {
+    p_semester_id: semesterId,
+    p_project_id:  projectId,
+    p_juror_id:    jurorId,
+    p_technical:   scores.technical ?? null,
+    p_written:     scores.design    ?? null,   // design   → written
+    p_oral:        scores.delivery  ?? null,   // delivery → oral
+    p_teamwork:    scores.teamwork  ?? null,
+    p_comment:     comment || "",
+  });
+  if (error) throw error;
+  return data; // integer total
+}
 
-export async function fetchMyScores() {
-  const json = await getFromSheetAuth({ action: "myscores" });
-  if (json.status === "unauthorized") {
-    const err = new Error("unauthorized");
-    err.unauthorized = true;
-    throw err;
+// ── Admin RPCs ─────────────────────────────────────────────────
+
+export async function adminLogin(password) {
+  const { data, error } = await supabase.rpc("rpc_admin_login", {
+    p_password: password,
+  });
+  if (error) throw error;
+  return data === true;
+}
+
+// Returns all score rows for a semester, normalized to the field
+// names that existing admin tab components expect.
+export async function adminGetScores(semesterId, adminPassword) {
+  const { data, error } = await supabase.rpc("rpc_admin_get_scores", {
+    p_semester_id:    semesterId,
+    p_admin_password: adminPassword,
+  });
+  if (error) {
+    if (error.code === "P0401" || error.message?.includes("unauthorized")) {
+      const e = new Error("unauthorized");
+      e.unauthorized = true;
+      throw e;
+    }
+    throw error;
   }
-  if (json.status !== "ok") return null;
-  return { rows: json.rows || [], editAllowed: json.editAllowed === true };
+
+  // Normalize DB names → admin tab field names (matches old GAS row shape)
+  return (data || []).map((row) => ({
+    jurorId:     row.juror_id,
+    juryName:    row.juror_name,
+    juryDept:    row.juror_inst,
+    projectId:   row.project_id,
+    groupNo:     row.group_no,
+    projectName: row.project_title,
+    // Normalize DB column names → config.js criterion ids
+    technical:   row.technical   ?? null,
+    design:      row.written     ?? null,   // written → design
+    delivery:    row.oral        ?? null,   // oral    → delivery
+    teamwork:    row.teamwork    ?? null,
+    total:       row.total       ?? null,
+    comments:    row.comment     || "",
+    timestamp:   row.submitted_at
+      ? new Date(row.submitted_at).toISOString()
+      : "",
+    tsMs: row.submitted_at
+      ? new Date(row.submitted_at).getTime()
+      : 0,
+    status:      row.status,
+    editingFlag: "",  // no longer applicable in Supabase model
+  }));
 }
 
-export async function allowJurorEdit(jurorId, adminPass) {
-  return getFromSheet({ action: "allowedit", jurorId, pass: adminPass });
+// Returns all jurors for the semester (including those who haven't scored yet).
+export async function adminListJurors(semesterId, adminPassword) {
+  const { data, error } = await supabase.rpc("rpc_admin_list_jurors", {
+    p_semester_id:    semesterId,
+    p_admin_password: adminPassword,
+  });
+  if (error) {
+    if (error.code === "P0401" || error.message?.includes("unauthorized")) {
+      const e = new Error("unauthorized");
+      e.unauthorized = true;
+      throw e;
+    }
+    throw error;
+  }
+  return (data || []).map((j) => ({
+    jurorId:  j.juror_id,
+    juryName: j.juror_name,
+    juryDept: j.juror_inst || "",
+  }));
 }
 
-export async function pingSession() {
-  return getFromSheetAuth({ action: "ping" });
+// Returns per-project summary aggregates + notes, normalized for admin tabs.
+export async function adminProjectSummary(semesterId, adminPassword) {
+  const { data, error } = await supabase.rpc("rpc_admin_project_summary", {
+    p_semester_id:    semesterId,
+    p_admin_password: adminPassword,
+  });
+  if (error) {
+    if (error.code === "P0401" || error.message?.includes("unauthorized")) {
+      const e = new Error("unauthorized");
+      e.unauthorized = true;
+      throw e;
+    }
+    throw error;
+  }
+
+  return (data || []).map((row) => ({
+    id:          row.project_id,
+    groupNo:     row.group_no,
+    name:        row.project_title,
+    students:    row.group_students || "",
+    count:       Number(row.juror_count || 0),
+    avg: {
+      technical: Number(row.avg_technical || 0),
+      design:    Number(row.avg_written   || 0),   // avg_written → design
+      delivery:  Number(row.avg_oral      || 0),   // avg_oral    → delivery
+      teamwork:  Number(row.avg_teamwork  || 0),
+    },
+    totalAvg: Number(row.avg_total || 0),
+    totalMin: row.min_total ?? 0,
+    totalMax: row.max_total ?? 0,
+    note:     row.note || "",
+  }));
 }
 
-export async function verifySubmittedCount() {
-  const json = await getFromSheetAuth({ action: "verify" });
-  if (json.status !== "ok") return 0;
-  return json.submittedCount || 0;
+export async function adminGetProjectNote(semesterId, projectId, adminPassword) {
+  const { data, error } = await supabase.rpc("rpc_admin_get_project_note", {
+    p_semester_id:    semesterId,
+    p_project_id:     projectId,
+    p_admin_password: adminPassword,
+  });
+  if (error) throw error;
+  return data || "";
+}
+
+export async function adminSetProjectNote(semesterId, projectId, note, adminPassword) {
+  const { error } = await supabase.rpc("rpc_admin_set_project_note", {
+    p_semester_id:    semesterId,
+    p_project_id:     projectId,
+    p_note:           note,
+    p_admin_password: adminPassword,
+  });
+  if (error) throw error;
 }

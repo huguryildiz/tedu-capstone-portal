@@ -1,12 +1,13 @@
 // src/config.js
 // ============================================================
-// SINGLE SOURCE OF TRUTH — update this file each semester.
+// SINGLE SOURCE OF TRUTH — evaluation criteria and UI config.
+//
+// Projects, jurors, and semesters are now stored in Supabase.
+// Update criteria rubrics and MÜDEK mappings here as needed.
 //
 // Environment variables (define in .env.local):
-//   VITE_SCRIPT_URL   — Google Apps Script deployment URL
-//   VITE_API_SECRET   — Shared secret checked by GAS on every
-//                        public PIN endpoint. Set the same value
-//                        as the GAS "API_SECRET" script property.
+//   VITE_SUPABASE_URL      — Supabase project URL
+//   VITE_SUPABASE_ANON_KEY — Supabase anonymous public key
 // ============================================================
 
 export const APP_CONFIG = {
@@ -15,59 +16,8 @@ export const APP_CONFIG = {
   department:  "Electrical & Electronics Engineering",
   university:  "TED University",
 
-  scriptUrl:   import.meta.env.VITE_SCRIPT_URL  || "",
-  apiSecret:   import.meta.env.VITE_API_SECRET  || "",
-
   showStudents: true,
 };
-
-// ── Groups / Projects ─────────────────────────────────────────
-export const PROJECTS = [
-  {
-    id: 1,
-    name: "Group 1",
-    desc: "Göksiper Hava Savunma Sistemi",
-    students: ["Mustafa Yusuf Ünal", "Ayça Naz Dedeoğlu", "Onur Mesci", "Çağan Erdoğan"],
-  },
-  {
-    id: 2,
-    name: "Group 2",
-    desc: "Radome and Radar-Absorbing Material Electromagnetic Design Software (REMDET)",
-    students: ["Niyazi Atilla Özer", "Bertan Ünver", "Ada Tatlı", "Nesibe Aydın"],
-  },
-  {
-    id: 3,
-    name: "Group 3",
-    desc: "Smart Crosswalk",
-    students: ["Sami Eren Germeç"],
-  },
-  {
-    id: 4,
-    name: "Group 4",
-    desc: "Radar Cross Section (RCS) Analysis — Supporting Multi-Purpose Ray Tracing Algorithm",
-    students: ["Ahmet Melih Yavuz", "Yasemin Erciyas"],
-  },
-  {
-    id: 5,
-    name: "Group 5",
-    desc: "Monitoring Pilots' Health Status and Cognitive Abilities During Flight",
-    students: ["Aysel Mine Çaylan", "Selimhan Kaynar", "Abdulkadir Sazlı", "Alp Efe İpek"],
-  },
-  {
-    id: 6,
-    name: "Group 6",
-    desc: "AKKE — Smart Command and Control Glove",
-    students: ["Şevval Kurtulmuş", "Abdullah Esin", "Berk Çakmak", "Ömer Efe Dikici"],
-  },
-];
-
-// Normalized project list (supports string or object entries).
-export const PROJECT_LIST = PROJECTS.map((p, i) =>
-  typeof p === "string"
-    ? { id: i + 1, name: p, desc: "", students: [] }
-    : { id: p.id ?? i + 1, name: p.name ?? `Group ${i + 1}`, desc: p.desc ?? "", students: p.students ?? [] }
-);
-export const TOTAL_GROUPS = PROJECT_LIST.length;
 
 // ── Evaluation Criteria ───────────────────────────────────────
 // Order here controls display order in jury form AND admin panel.
@@ -230,4 +180,3 @@ export const MUDEK_OUTCOMES = {
 // ── Derived helpers ───────────────────────────────────────────
 export const TOTAL_MAX        = CRITERIA.reduce((s, c) => s + (Number(c.max) || 0), 0);
 export const getCriterionById = (id) => CRITERIA.find((c) => c.id === id);
-export const getProjectById   = (id) => PROJECTS.find((p) => p.id === id);

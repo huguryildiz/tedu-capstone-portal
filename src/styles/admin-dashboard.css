@@ -895,6 +895,7 @@
   white-space: nowrap;
 }
 
-/* Print-only header — hidden on screen */
+/* Print-only sections — hidden on screen */
 .print-header { display: none; }
+.print-report  { display: none; }
 

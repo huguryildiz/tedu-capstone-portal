@@ -410,8 +410,10 @@
   @page { size: A4 landscape; margin: 12mm; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-  /* Show the print-only header */
-  .print-header        { display: block !important; margin-bottom: 24px; border-bottom: 2px solid #1e3a8a; padding-bottom: 12px; }
+  /* Show print-only sections, hide screen-only sections */
+  .screen-charts { display: none !important; }
+  .print-report  { display: block !important; }
+  .print-header  { display: block !important; margin-bottom: 24px; border-bottom: 2px solid #1e3a8a; padding-bottom: 12px; }
   .print-header-title  { font-size: 22px; font-weight: 700; color: #0f172a; line-height: 1.2; }
   .print-header-sub    { font-size: 13px; color: #475569; margin-top: 4px; line-height: 1.2; }
   .print-header-meta   { font-size: 13px; color: #64748b; margin-top: 6px; line-height: 1.2; }

@@ -26,15 +26,16 @@ import {
 
 const cellStyle = (entry) => {
   if (!entry) return { background: "#f8fafc", color: "#94a3b8" };
-  if (entry.status === "all_submitted")   return { background: "#dcfce7", color: "#166534", fontWeight: 700 };
-  if (entry.status === "group_submitted") return { background: "#ecfdf3", color: "#16a34a", fontWeight: 600 };
-  if (entry.status === "in_progress")     return { background: "#fef9c3", color: "#92400e" };
+  if (entry.status === "submitted" || entry.status === "all_submitted" || entry.status === "group_submitted")
+    return { background: "#dcfce7", color: "#166534", fontWeight: 700 };
+  if (entry.status === "in_progress") return { background: "#fef9c3", color: "#92400e" };
   return { background: "#f8fafc", color: "#94a3b8" };
 };
 
 const cellText = (entry) => {
   if (!entry) return "";
-  if (entry.status === "all_submitted" || entry.status === "group_submitted") return entry.total;
+  if (entry.status === "submitted" || entry.status === "all_submitted" || entry.status === "group_submitted")
+    return entry.total;
   if (entry.status === "in_progress") return "";  // background color only
   return "";
 };
@@ -161,7 +162,7 @@ export default function MatrixTab({ data, jurors, groups }) {
     const entries = groups.map((g) => {
       const entry = lookup[jurorKey]?.[g.id];
       const normalizedStatus =
-        entry?.status === "group_submitted" || entry?.status === "all_submitted"
+        entry?.status === "submitted" || entry?.status === "group_submitted" || entry?.status === "all_submitted"
           ? "submitted"
           : entry?.status || "not_started";
       return { status: normalizedStatus, editing: entry?.editingFlag === "editing" };
@@ -279,9 +280,9 @@ export default function MatrixTab({ data, jurors, groups }) {
                     <button
                       className={`matrix-col-sort${isActive ? " active" : ""}`}
                       onClick={() => toggleGroupSort(g.id)}
-                      title={`Sort by ${g.id}`}
+                      title={`Sort by ${g.label}`}
                     >
-                      <strong>{g.id}</strong>
+                      <strong>{g.groupNo}</strong>
                       <span className="sort-icon">{groupSortIcon(g.id)}</span>
                     </button>
                   </th>
