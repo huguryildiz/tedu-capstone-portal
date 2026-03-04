@@ -220,6 +220,7 @@ export default function ManageJurorsPanel({
 
       {(!isMobile || isOpen) && (
         <div className="manage-card-body">
+          <div className="manage-card-desc">Import jurors, edit details, and reset PINs when needed.</div>
           <div className="manage-card-actions">
             <button
               className="manage-btn"

@@ -272,6 +272,7 @@ export default function ManageProjectsPanel({
 
       {(!isMobile || isOpen) && (
         <div className="manage-card-body">
+          <div className="manage-card-desc">Manage groups, project titles, and student lists for the active semester.</div>
           <div className="manage-card-actions">
             <button
               className="manage-btn"

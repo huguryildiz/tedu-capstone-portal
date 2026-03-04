@@ -15,11 +15,9 @@ import {
   ArrowDown01Icon,
   ArrowDown10Icon,
   InfoIcon,
-  CheckIcon,
   HourglassIcon,
   PencilIcon,
   CircleCheckBigIcon,
-  CircleIcon,
 } from "../shared/Icons";
 
 // ── Cell helpers ──────────────────────────────────────────────
@@ -158,46 +156,33 @@ export default function MatrixTab({ data, jurors, groups }) {
     return list;
   }, [jurors, jurorFilter, sortGroupId, sortGroupDir, sortMode, sortJurorDir, lookup]);
 
-  const jurorStatus = (jurorKey) => {
-    const entries = groups.map((g) => {
-      const entry = lookup[jurorKey]?.[g.id];
-      const normalizedStatus =
-        entry?.status === "submitted" || entry?.status === "group_submitted" || entry?.status === "all_submitted"
-          ? "submitted"
-          : entry?.status || "not_started";
-      return { status: normalizedStatus, editing: entry?.editingFlag === "editing" };
-    });
-    if (entries.every((e) => e.status === "not_started")) return "not_started";
-    if (entries.some((e) => e.editing)) return "editing";
-    if (entries.every((e) => e.status === "submitted")) return "completed";
-    if (entries.some((e) => e.status === "in_progress")) return "in_progress";
-    if (entries.some((e) => e.status === "submitted")) return "submitted";
-    return "not_started";
+  const jurorStatus = (juror) => {
+    if (juror.editEnabled) return "editing";
+    const allSubmitted = groups.length > 0 && groups.every(
+      (g) => lookup[juror.key]?.[g.id]?.status === "submitted"
+    );
+    return allSubmitted ? "completed" : "in_progress";
   };
 
   const statusLabel = {
     completed: "Completed",
-    submitted: "Submitted",
     in_progress: "In Progress",
     editing: "Editing",
-    not_started: "Not Started",
   };
 
   const statusIcon = {
     completed: <CircleCheckBigIcon />,
-    submitted: <CheckIcon />,
     in_progress: <HourglassIcon />,
     editing: <PencilIcon />,
-    not_started: <CircleIcon />,
   };
 
 
-  // Average row: final-only entries from visibleJurors, 2 decimal places.
+  // Average row: submitted entries from visibleJurors, 2 decimal places.
   const groupAverages = useMemo(() =>
     groups.map((g) => {
       const vals = visibleJurors
         .map((j) => lookup[j.key]?.[g.id])
-        .filter((e) => e?.status === "all_submitted")
+        .filter((e) => e?.status === "submitted")
         .map((e) => e.total);
       return vals.length
         ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2)
@@ -235,10 +220,6 @@ export default function MatrixTab({ data, jurors, groups }) {
             <span className="matrix-icon-legend-item">
               <span className="matrix-status-icon in_progress"><HourglassIcon /></span>
               In Progress
-            </span>
-            <span className="matrix-icon-legend-item">
-              <span className="matrix-status-icon not_started"><CircleIcon /></span>
-              Not Started
             </span>
           </div>
         </div>
@@ -282,7 +263,7 @@ export default function MatrixTab({ data, jurors, groups }) {
                       onClick={() => toggleGroupSort(g.id)}
                       title={`Sort by ${g.label}`}
                     >
-                      <span>{g.label || `Group ${g.groupNo}`}</span>
+                      <span>{g.groupNo ?? g.label}</span>
                       <span className="sort-icon">{groupSortIcon(g.id)}</span>
                     </button>
                   </th>
@@ -296,7 +277,7 @@ export default function MatrixTab({ data, jurors, groups }) {
               <tr key={juror.key}>
                 <td className="matrix-juror">
                   {(() => {
-                    const status = jurorStatus(juror.key);
+                    const status = jurorStatus(juror);
                     const fullName = juror.dept ? `${juror.name} (${juror.dept})` : juror.name;
                     return (
                       <>

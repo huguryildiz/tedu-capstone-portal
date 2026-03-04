@@ -23,28 +23,24 @@ import { toNum, tsToMillis, cmp, jurorBg, jurorDot, rowKey } from "./admin/utils
 import { readSection, writeSection } from "./admin/persist";
 import { HomeIcon, RefreshIcon } from "./admin/components";
 import {
-  UsersLucideIcon,
+  UserRoundCheckIcon,
   HourglassIcon,
   PencilIcon,
   CheckCircle2Icon,
   ListChecksIcon,
   TrophyIcon,
   ChartIcon,
-  ClipboardIcon,
-  UserCheckIcon,
-  GridIcon,
+  LayoutDashboardIcon,
   ClockIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ChevronDownIcon,
   SettingsIcon,
 } from "./shared/Icons";
-import SummaryTab    from "./admin/SummaryTab";
-import DashboardTab  from "./admin/DashboardTab";
-import DetailsTab    from "./admin/DetailsTab";
-import JurorsTab     from "./admin/JurorsTab";
-import MatrixTab     from "./admin/MatrixTab";
-import ManagePage    from "./admin/ManagePage";
+import OverviewTab    from "./admin/OverviewTab";
+import ResultsTab     from "./admin/ResultsTab";
+import AnalysisTab    from "./admin/AnalysisTab";
+import ManagePage     from "./admin/ManagePage";
 import "./styles/admin-layout.css";
 import "./styles/admin-summary.css";
 import "./styles/admin-details.css";
@@ -59,11 +55,9 @@ const CRITERIA_LIST = CRITERIA.map((c) => ({
 }));
 
 const TABS = [
-  { id: "summary",   label: "Summary",   icon: TrophyIcon    },
-  { id: "dashboard", label: "Dashboard", icon: ChartIcon     },
-  { id: "detail",    label: "Details",   icon: ClipboardIcon },
-  { id: "jurors",    label: "Jurors",    icon: UserCheckIcon },
-  { id: "matrix",    label: "Matrix",    icon: GridIcon      },
+  { id: "overview",  label: "Overview",  icon: LayoutDashboardIcon },
+  { id: "results",   label: "Results",   icon: TrophyIcon    },
+  { id: "analysis",  label: "Analysis",  icon: ChartIcon     },
   { id: "manage",    label: "Manage",    icon: SettingsIcon  },
 ];
 
@@ -149,7 +143,7 @@ function ResultsStatusBar({ metrics, id, semesterSlot }) {
       )}
       <div className="results-status-row results-status-row--chips">
         <span className={`status-chip status-chip--${jurorTheme}`}>
-          <span className="status-block"><UsersLucideIcon /><span className="status-value">{jv(safeTJ)}</span></span>
+          <span className="status-block"><UserRoundCheckIcon /><span className="status-value">{jv(safeTJ)}</span></span>
           <span className="status-sep" aria-hidden="true">·</span>
           <span className="status-block"><CheckCircle2Icon /><span className="status-value">{jv(safeCJ)}</span></span>
           <span className="status-sep" aria-hidden="true">·</span>
@@ -182,10 +176,10 @@ export default function AdminPanel({ adminPass, onBack, onAuthError, onInitialLo
   const [error,       setError]       = useState("");
   const [authError,   setAuthError]   = useState("");
   const [showStatus,  setShowStatus]  = useState(true);
+  const VALID_TABS = new Set(["overview", "results", "analysis", "manage"]);
   const [activeTab,   setActiveTab]   = useState(() => {
-    const s = readSection("tab");
-    const valid = ["summary", "dashboard", "detail", "jurors", "matrix", "manage"];
-    return valid.includes(s.activeTab) ? s.activeTab : "summary";
+    const saved = readSection("tab").activeTab;
+    return VALID_TABS.has(saved) ? saved : "overview";
   });
   const [lastRefresh, setLastRefresh] = useState(null);
   const [tabOverflow, setTabOverflow] = useState(false);
@@ -350,18 +344,47 @@ export default function AdminPanel({ adminPass, onBack, onAuthError, onInitialLo
     // Seed from allJurors first (includes jurors with 0 scores)
     allJurors.forEach((j) => {
       const key = j.jurorId;
-      if (!seen.has(key))
-        seen.set(key, { key, name: j.juryName.trim(), dept: j.juryDept.trim(), jurorId: j.jurorId });
+      if (!seen.has(key)) {
+        seen.set(key, {
+          key,
+          name: j.juryName.trim(),
+          dept: j.juryDept.trim(),
+          jurorId: j.jurorId,
+          editEnabled: !!j.editEnabled,
+          isAssigned: j.isAssigned,
+        });
+      }
     });
     // Fill / override with rawScores data (has same info, just ensures consistency)
     rawScores.forEach((d) => {
       if (!d.juryName) return;
       const key = d.jurorId || rowKey(d);
-      if (!seen.has(key))
-        seen.set(key, { key, name: d.juryName.trim(), dept: d.juryDept.trim(), jurorId: d.jurorId });
+      const prev = seen.get(key);
+      seen.set(key, {
+        key,
+        name: d.juryName.trim(),
+        dept: d.juryDept.trim(),
+        jurorId: d.jurorId,
+        editEnabled: prev?.editEnabled ?? false,
+        isAssigned: prev?.isAssigned,
+      });
     });
     return [...seen.values()].sort((a, b) => cmp(a.name, b.name));
   }, [allJurors, rawScores]);
+
+  // Matrix should show only jurors assigned to the selected semester.
+  const matrixJurors = useMemo(() => {
+    const assignedMap = new Map(allJurors.map((j) => [j.jurorId, j.isAssigned]));
+    const hasAssignedFlag = allJurors.some((j) => typeof j.isAssigned === "boolean");
+    if (hasAssignedFlag) {
+      return uniqueJurors.filter((j) => assignedMap.get(j.jurorId) === true);
+    }
+    // Fallback: only jurors that appear in scores
+    const scoreKeys = new Set(rawScores.map((r) => rowKey(r)));
+    return uniqueJurors.filter((j) => scoreKeys.has(j.key));
+  }, [allJurors, uniqueJurors, rawScores]);
+
+  const assignedJurors = matrixJurors;
 
   const jurorDeptMap = useMemo(() => {
     const m = new Map();
@@ -414,7 +437,7 @@ export default function AdminPanel({ adminPass, onBack, onAuthError, onInitialLo
 
   // jurorStats for JurorsTab
   const jurorStats = useMemo(() => {
-    return uniqueJurors.map(({ key, name, dept, jurorId }) => {
+    return assignedJurors.map(({ key, name, dept, jurorId, editEnabled }) => {
       const rows       = rawScores.filter((d) => rowKey(d) === key);
       const completed  = rows.filter((r) => r.status === "submitted");
       const inProgress = rows.filter((r) => r.status === "in_progress");
@@ -431,37 +454,50 @@ export default function AdminPanel({ adminPass, onBack, onAuthError, onInitialLo
         submitted: completed,
         completed, finalSubmitted: completed, inProgress,
         latestTs, latestRow, overall,
+        editEnabled,
       };
     });
-  }, [uniqueJurors, rawScores, totalProjects]);
+  }, [assignedJurors, rawScores, totalProjects]);
 
   // statusMetrics for header status bar
   const statusMetrics = useMemo(() => {
-    const totalJurors = uniqueJurors.length;
-    const completedEvaluations = completedData.length;
+    const assignedIds = new Set(assignedJurors.map((j) => j.jurorId));
+    const totalJurors = assignedJurors.length;
+    const completedEvaluations = submittedData.filter((r) =>
+      assignedIds.size === 0 ? true : assignedIds.has(r.jurorId)
+    ).length;
     const totalEvaluations = totalJurors * totalProjects;
     const submittedByJuror = new Map();
     rawScores.forEach((r) => {
       if (r.status !== "submitted") return;
+      if (assignedIds.size > 0 && !assignedIds.has(r.jurorId)) return;
       const key = rowKey(r);
       if (!submittedByJuror.has(key)) submittedByJuror.set(key, new Set());
       submittedByJuror.get(key).add(r.projectId);
     });
-    const completedJurors = uniqueJurors.filter(
+    const completedJurors = assignedJurors.filter(
       (j) => (submittedByJuror.get(j.key)?.size || 0) >= totalProjects && totalProjects > 0
     ).length;
     const inProgressKeys = new Set(
-      rawScores.filter((r) => r.status === "in_progress").map((r) => rowKey(r))
+      rawScores
+        .filter((r) => r.status === "in_progress")
+        .filter((r) => assignedIds.size === 0 ? true : assignedIds.has(r.jurorId))
+        .map((r) => rowKey(r))
     );
+    const editingJurors = allJurors.filter((j) => {
+      const assigned = j.isAssigned ?? j.is_assigned;
+      const enabled = j.editEnabled ?? j.edit_enabled;
+      return (assignedIds.size === 0 ? true : assigned) && !!enabled;
+    }).length;
     return {
       completedJurors,
       totalJurors,
       completedEvaluations,
       totalEvaluations,
       inProgressJurors: inProgressKeys.size,
-      editingJurors: 0,  // no editing concept in Supabase model
+      editingJurors,
     };
-  }, [rawScores, completedData, uniqueJurors, totalProjects]);
+  }, [rawScores, submittedData, assignedJurors, allJurors, totalProjects]);
 
   useEffect(() => {
     if (!lastRefresh) return;
@@ -477,11 +513,6 @@ export default function AdminPanel({ adminPass, onBack, onAuthError, onInitialLo
     } catch {}
   }, [statusMetrics.totalJurors, statusMetrics.completedJurors, lastRefresh]);
 
-  const lastRefreshDate = lastRefresh
-    ? new Intl.DateTimeFormat("en-GB", {
-        timeZone: "Europe/Istanbul", day: "2-digit", month: "2-digit", year: "numeric",
-      }).format(lastRefresh).replace(/\//g, ".")
-    : "";
   const lastRefreshTime = lastRefresh
     ? new Intl.DateTimeFormat("en-GB", {
         timeZone: "Europe/Istanbul", hour: "2-digit", minute: "2-digit", hour12: false,
@@ -532,10 +563,7 @@ export default function AdminPanel({ adminPass, onBack, onAuthError, onInitialLo
             {lastRefresh && (
               <span className="last-updated">
                 <ClockIcon />
-                <span className="last-updated-text">
-                  <span className="last-updated-date">{lastRefreshDate}</span>
-                  <span className="last-updated-time">{lastRefreshTime}</span>
-                </span>
+                <span className="last-updated-time">{lastRefreshTime}</span>
               </span>
             )}
             <button
@@ -601,45 +629,34 @@ export default function AdminPanel({ adminPass, onBack, onAuthError, onInitialLo
       {/* Tab content */}
       {!loading && !error && !authError && (
         <div className="admin-body">
-          {activeTab === "summary"   && (
-            <SummaryTab
-              ranked={ranked}
-              submittedData={submittedData}
+          {activeTab === "overview" && (
+            <OverviewTab
+              jurorStats={jurorStats}
+              groups={groups}
             />
           )}
-          {activeTab === "dashboard" && (
-            <DashboardTab
+          {activeTab === "results" && (
+            <ResultsTab
+              ranked={ranked}
+              submittedData={submittedData}
+              rawScores={rawScores}
+              jurors={uniqueJurors}
+              matrixJurors={matrixJurors}
+              jurorColorMap={jurorColorMap}
+              groups={groups}
+              semesterName={selectedSemesterName}
+              summaryData={summaryData}
+              jurorDeptMap={jurorDeptMap}
+            />
+          )}
+          {activeTab === "analysis" && (
+            <AnalysisTab
               dashboardStats={dashboardStats}
               submittedData={dashboardData}
               lastRefresh={lastRefresh}
               loading={loading}
               error={error}
               semesterName={selectedSemesterName}
-            />
-          )}
-          {activeTab === "detail" && (
-            <DetailsTab
-              data={rawScores}
-              jurors={uniqueJurors}
-              jurorColorMap={jurorColorMap}
-              groups={groups}
-              semesterName={semesterList.find((s) => s.id === selectedSemesterId)?.name ?? selectedSemesterId}
-              summaryData={summaryData}
-            />
-          )}
-          {activeTab === "jurors" && (
-            <JurorsTab
-              jurorStats={jurorStats}
-              jurors={uniqueJurors}
-              groups={groups}
-            />
-          )}
-          {activeTab === "matrix" && (
-            <MatrixTab
-              data={rawScores}
-              jurors={uniqueJurors}
-              groups={groups}
-              jurorDeptMap={jurorDeptMap}
             />
           )}
           {activeTab === "manage" && (

@@ -29,12 +29,24 @@ import ManagePermissionsPanel from "./ManagePermissionsPanel";
 import AdminSecurityPanel from "../components/admin/AdminSecurityPanel";
 
 const SETTINGS_KEYS = {
-  editWindow: "edit_window_minutes",
   evalLock: "eval_lock_active_semester",
 };
 
+const buildExportFilename = (label, semesterName) => {
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, "0");
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const yyyy = String(now.getFullYear());
+  const hh = String(now.getHours()).padStart(2, "0");
+  const min = String(now.getMinutes()).padStart(2, "0");
+  const safeSemester = String(semesterName || "Semester")
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-zA-Z0-9_-]/g, "");
+  return `TEDU_EE491-492_Jury_${label}_${safeSemester}_${dd}${mm}${yyyy}_${hh}${min}.xlsx`;
+};
+
 const defaultSettings = {
-  editWindowMinutes: 30,
   evalLockActive: false,
 };
 
@@ -109,10 +121,8 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
     if (!adminPass) return;
     const rows = await adminGetSettings(adminPass);
     const map = new Map((rows || []).map((r) => [r.key, r.value]));
-    const editWindow = Number(map.get(SETTINGS_KEYS.editWindow) || 30);
     const evalLockActive = map.get(SETTINGS_KEYS.evalLock) === "true";
     setSettings({
-      editWindowMinutes: Number.isFinite(editWindow) ? editWindow : 30,
       evalLockActive,
     });
   }, [adminPass]);
@@ -322,7 +332,6 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
           semesterId: activeSemesterId,
           jurorId,
           enabled,
-          minutes: Number(settings.editWindowMinutes || 0),
         },
         adminPass
       );
@@ -342,10 +351,7 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
     setMessage("");
     setError("");
     try {
-      await Promise.all([
-        adminSetSetting(SETTINGS_KEYS.editWindow, String(Number(next.editWindowMinutes || 0)), adminPass),
-        adminSetSetting(SETTINGS_KEYS.evalLock, String(!!next.evalLockActive), adminPass),
-      ]);
+      await adminSetSetting(SETTINGS_KEYS.evalLock, String(!!next.evalLockActive), adminPass);
       setSettings(next);
       setMessage("Settings saved.");
     } catch (e) {
@@ -364,7 +370,7 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
     ws["!cols"] = [8, 36, 42].map((w) => ({ wch: w }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Projects");
-    XLSX.writeFile(wb, `projects-${activeSemester?.name || "semester"}.xlsx`);
+    XLSX.writeFile(wb, buildExportFilename("Projects", activeSemester?.name));
   };
 
   const handleExportJurors = async () => {
@@ -376,7 +382,7 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
     ws["!cols"] = [28, 32].map((w) => ({ wch: w }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Jurors");
-    XLSX.writeFile(wb, `jurors-${activeSemester?.name || "semester"}.xlsx`);
+    XLSX.writeFile(wb, buildExportFilename("Jurors", activeSemester?.name));
   };
 
   const handleExportScores = async () => {
@@ -431,86 +437,96 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
       )}
 
       <div className="manage-grid">
-        <ManageSemesterPanel
-          semesters={semesterList}
-          activeSemesterId={activeSemesterId}
-          isMobile={isMobile}
-          isOpen={openPanels.semester}
-          onToggle={() => togglePanel("semester")}
-          onSetActive={handleSetActiveSemester}
-          onCreateSemester={handleCreateSemester}
-          onUpdateSemester={handleUpdateSemester}
-        />
+        <section className="manage-section" style={{ gridColumn: "1 / -1" }}>
+          <h3 className="manage-section-title">Data</h3>
+          <div className="manage-section-grid">
+            <ManageSemesterPanel
+              semesters={semesterList}
+              activeSemesterId={activeSemesterId}
+              isMobile={isMobile}
+              isOpen={openPanels.semester}
+              onToggle={() => togglePanel("semester")}
+              onSetActive={handleSetActiveSemester}
+              onCreateSemester={handleCreateSemester}
+              onUpdateSemester={handleUpdateSemester}
+            />
 
-        <ManageProjectsPanel
-          projects={projects}
-          semesterName={activeSemester?.name || ""}
-          isMobile={isMobile}
-          isOpen={openPanels.projects}
-          onToggle={() => togglePanel("projects")}
-          onImport={handleImportProjects}
-          onAddGroup={handleAddProject}
-          onEditGroup={handleEditProject}
-        />
+            <ManageProjectsPanel
+              projects={projects}
+              semesterName={activeSemester?.name || ""}
+              isMobile={isMobile}
+              isOpen={openPanels.projects}
+              onToggle={() => togglePanel("projects")}
+              onImport={handleImportProjects}
+              onAddGroup={handleAddProject}
+              onEditGroup={handleEditProject}
+            />
 
-        <ManageJurorsPanel
-          jurors={jurors}
-          isMobile={isMobile}
-          isOpen={openPanels.jurors}
-          onToggle={() => togglePanel("jurors")}
-          onImport={handleImportJurors}
-          onAddJuror={handleAddJuror}
-          onEditJuror={handleEditJuror}
-          onResetPin={handleResetPin}
-        />
+            <ManageJurorsPanel
+              jurors={jurors}
+              isMobile={isMobile}
+              isOpen={openPanels.jurors}
+              onToggle={() => togglePanel("jurors")}
+              onImport={handleImportJurors}
+              onAddJuror={handleAddJuror}
+              onEditJuror={handleEditJuror}
+              onResetPin={handleResetPin}
+            />
 
-        <ManagePermissionsPanel
-          settings={settings}
-          jurors={jurors}
-          isMobile={isMobile}
-          isOpen={openPanels.permissions}
-          onToggle={() => togglePanel("permissions")}
-          onSave={handleSaveSettings}
-          onToggleEdit={handleToggleJurorEdit}
-        />
+            <ManagePermissionsPanel
+              settings={settings}
+              jurors={jurors}
+              isMobile={isMobile}
+              isOpen={openPanels.permissions}
+              onToggle={() => togglePanel("permissions")}
+              onSave={handleSaveSettings}
+              onToggleEdit={handleToggleJurorEdit}
+            />
+          </div>
+        </section>
 
-        <AdminSecurityPanel
-          isMobile={isMobile}
-          isOpen={openPanels.security}
-          onToggle={() => togglePanel("security")}
-          onPasswordChanged={onAdminPasswordChange}
-        />
+        <section className="manage-section" style={{ gridColumn: "1 / -1" }}>
+          <h3 className="manage-section-title">Access Control</h3>
+          <div className="manage-section-grid">
+            <AdminSecurityPanel
+              isMobile={isMobile}
+              isOpen={openPanels.security}
+              onToggle={() => togglePanel("security")}
+              onPasswordChanged={onAdminPasswordChange}
+            />
+            <div className={`manage-card${isMobile ? " is-collapsible" : ""}`}>
+              <button
+                type="button"
+                className="manage-card-header"
+                onClick={() => togglePanel("export")}
+                aria-expanded={openPanels.export}
+              >
+                <div className="manage-card-title">
+                  <span className="manage-card-icon" aria-hidden="true"><DownloadIcon /></span>
+                  Export Tools
+                </div>
+                {isMobile && <ChevronDownIcon className={`manage-chevron${openPanels.export ? " open" : ""}`} />}
+              </button>
 
-        <div className={`manage-card${isMobile ? " is-collapsible" : ""}`}>
-          <button
-            type="button"
-            className="manage-card-header"
-            onClick={() => togglePanel("export")}
-            aria-expanded={openPanels.export}
-          >
-            <div className="manage-card-title">
-              <span className="manage-card-icon" aria-hidden="true"><DownloadIcon /></span>
-              Export Tools
+              {(!isMobile || openPanels.export) && (
+                <div className="manage-card-body">
+                  <div className="manage-card-desc">Download Excel exports for scores, jurors, and projects.</div>
+                  <div className="manage-export-actions">
+                    <button className="manage-btn" type="button" onClick={handleExportScores}>
+                      <DownloadIcon /> Export Scores
+                    </button>
+                    <button className="manage-btn" type="button" onClick={handleExportJurors}>
+                      <DownloadIcon /> Export Jurors
+                    </button>
+                    <button className="manage-btn" type="button" onClick={handleExportProjects}>
+                      <DownloadIcon /> Export Projects
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-            {isMobile && <ChevronDownIcon className={`manage-chevron${openPanels.export ? " open" : ""}`} />}
-          </button>
-
-          {(!isMobile || openPanels.export) && (
-            <div className="manage-card-body">
-              <div className="manage-export-actions">
-                <button className="manage-btn" type="button" onClick={handleExportScores}>
-                  <DownloadIcon /> Export Scores
-                </button>
-                <button className="manage-btn" type="button" onClick={handleExportJurors}>
-                  <DownloadIcon /> Export Jurors
-                </button>
-                <button className="manage-btn" type="button" onClick={handleExportProjects}>
-                  <DownloadIcon /> Export Projects
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        </section>
       </div>
     </div>
   );

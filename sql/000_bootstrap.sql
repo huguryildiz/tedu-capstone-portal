@@ -96,9 +96,6 @@ CREATE TABLE IF NOT EXISTS public.juror_semester_auth (
 ALTER TABLE public.juror_semester_auth
   ADD COLUMN IF NOT EXISTS edit_enabled boolean NOT NULL DEFAULT false;
 
-ALTER TABLE public.juror_semester_auth
-  ADD COLUMN IF NOT EXISTS edit_expires_at timestamptz;
-
 -- Remove legacy plaintext PIN storage if present
 DO $$
 BEGIN
@@ -111,6 +108,22 @@ BEGIN
   ) THEN
     ALTER TABLE public.juror_semester_auth
       DROP COLUMN pin_plain_once;
+  END IF;
+END;
+$$;
+
+-- Remove legacy edit window column if present
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'juror_semester_auth'
+      AND column_name = 'edit_expires_at'
+  ) THEN
+    ALTER TABLE public.juror_semester_auth
+      DROP COLUMN edit_expires_at;
   END IF;
 END;
 $$;
@@ -944,9 +957,9 @@ RETURNS TABLE (
   juror_inst text,
   locked_until timestamptz,
   is_locked boolean,
+  is_assigned boolean,
   scored_semesters text[],
   edit_enabled boolean,
-  edit_expires_at timestamptz,
   total_projects integer,
   completed_projects integer
 )
@@ -982,9 +995,17 @@ BEGIN
       j.juror_inst,
       a.locked_until,
       (a.locked_until IS NOT NULL AND a.locked_until > now()) AS is_locked,
+      (
+        a.juror_id IS NOT NULL
+        OR EXISTS (
+          SELECT 1
+          FROM scores sc2
+          WHERE sc2.semester_id = p_semester_id
+            AND sc2.juror_id = j.id
+        )
+      ) AS is_assigned,
       COALESCE(ss.scored_semesters, ARRAY[]::text[]),
       COALESCE(a.edit_enabled, false) AS edit_enabled,
-      a.edit_expires_at,
       COALESCE(t.total_projects, 0) AS total_projects,
       COALESCE(c.completed_projects, 0) AS completed_projects
     FROM jurors j
@@ -1010,12 +1031,11 @@ $$;
 
 -- ── Admin: toggle per-juror edit mode ───────────────────────
 
-DROP FUNCTION IF EXISTS public.rpc_admin_set_juror_edit_mode(uuid, uuid, boolean, integer, text);
+DROP FUNCTION IF EXISTS public.rpc_admin_set_juror_edit_mode(uuid, uuid, boolean, text);
 CREATE OR REPLACE FUNCTION public.rpc_admin_set_juror_edit_mode(
   p_semester_id uuid,
   p_juror_id uuid,
   p_enabled boolean,
-  p_minutes integer,
   p_admin_password text
 )
 RETURNS boolean
@@ -1023,8 +1043,6 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, extensions
 AS $$
-DECLARE
-  v_expires timestamptz;
 BEGIN
   IF NOT public._verify_admin_password(p_admin_password) THEN
     RAISE EXCEPTION 'unauthorized' USING ERRCODE = 'P0401';
@@ -1039,15 +1057,8 @@ BEGIN
   END IF;
 
   IF COALESCE(p_enabled, false) THEN
-    IF p_minutes IS NULL OR p_minutes <= 0 THEN
-      v_expires := NULL;
-    ELSE
-      v_expires := now() + make_interval(mins => p_minutes);
-    END IF;
-
     UPDATE juror_semester_auth
-    SET edit_enabled = true,
-        edit_expires_at = v_expires
+    SET edit_enabled = true
     WHERE juror_id = p_juror_id
       AND semester_id = p_semester_id;
 
@@ -1056,8 +1067,7 @@ BEGIN
     END IF;
   ELSE
     UPDATE juror_semester_auth
-    SET edit_enabled = false,
-        edit_expires_at = NULL
+    SET edit_enabled = false
     WHERE juror_id = p_juror_id
       AND semester_id = p_semester_id;
 
@@ -1079,7 +1089,6 @@ CREATE OR REPLACE FUNCTION public.rpc_get_juror_edit_state(
 )
 RETURNS TABLE (
   edit_enabled boolean,
-  edit_expires_at timestamptz,
   edit_allowed boolean,
   lock_active boolean
 )
@@ -1090,7 +1099,6 @@ AS $$
 DECLARE
   v_lock boolean := false;
   v_enabled boolean := false;
-  v_expires timestamptz := null;
 BEGIN
   SELECT (value = 'true') INTO v_lock
   FROM settings
@@ -1102,12 +1110,12 @@ BEGIN
     WHERE s.id = p_semester_id
       AND s.is_active = true
   ) THEN
-    RETURN QUERY SELECT false, null::timestamptz, false, v_lock;
+    RETURN QUERY SELECT false, false, v_lock;
     RETURN;
   END IF;
 
-  SELECT a.edit_enabled, a.edit_expires_at
-    INTO v_enabled, v_expires
+  SELECT a.edit_enabled
+    INTO v_enabled
   FROM juror_semester_auth a
   WHERE a.juror_id = p_juror_id
     AND a.semester_id = p_semester_id;
@@ -1117,8 +1125,7 @@ BEGIN
   RETURN QUERY
     SELECT
       v_enabled,
-      v_expires,
-      (v_enabled AND (v_expires IS NULL OR v_expires > now()) AND NOT v_lock),
+      (v_enabled AND NOT v_lock),
       v_lock;
 END;
 $$;
@@ -1165,8 +1172,7 @@ BEGIN
   END IF;
 
   UPDATE juror_semester_auth
-  SET edit_enabled = false,
-      edit_expires_at = NULL
+  SET edit_enabled = false
   WHERE juror_id = p_juror_id
     AND semester_id = p_semester_id;
 
@@ -1480,7 +1486,7 @@ GRANT EXECUTE ON FUNCTION public.rpc_admin_reset_juror_pin(uuid, uuid, text) TO 
 GRANT EXECUTE ON FUNCTION public.rpc_admin_get_settings(text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_admin_set_setting(text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_admin_list_jurors(text, uuid) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rpc_admin_set_juror_edit_mode(uuid, uuid, boolean, integer, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rpc_admin_set_juror_edit_mode(uuid, uuid, boolean, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_admin_change_password(text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_admin_bootstrap_password(text) TO anon, authenticated;
 

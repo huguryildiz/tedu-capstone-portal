@@ -386,6 +386,7 @@
   .juror-header-actions .status-badge,
   .juror-header-actions .juror-reset-pill { height: 28px; }
   .juror-meta .juror-reset-pill { align-self: flex-end; }
+  .juror-header-actions.juror-meta-editing { justify-content: flex-start; }
 
   /* Tab bar text smaller */
   .tab { font-size: 12px; padding: 10px 10px; }

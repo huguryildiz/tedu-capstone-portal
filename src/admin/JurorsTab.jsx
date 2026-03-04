@@ -73,7 +73,8 @@ export default function JurorsTab({ jurorStats, groups = [] }) {
 
       <div className="jurors-grid jurors-grid-full">
         {filtered.map((stat) => {
-          const { key, jury, rows, overall, latestRow } = stat;
+          const { key, jury, rows, overall, latestRow, editEnabled } = stat;
+          const isEditing = !!editEnabled;
 
           // Progress bar using groups prop for total count
           const pct = adminCompletionPct(rows, groups.length);
@@ -95,6 +96,7 @@ export default function JurorsTab({ jurorStats, groups = [] }) {
             grpStatuses.length > 0 && grpStatuses.every((g) => g.status === "submitted");
 
           const statusClass =
+            isEditing                 ? "juror-card-editing"       :
             overall === "all_submitted" ? "juror-card-all-submitted" :
             overall === "in_progress"   ? "juror-card-in-progress"   : "";
 
@@ -111,8 +113,10 @@ export default function JurorsTab({ jurorStats, groups = [] }) {
                       )}
                     </span>
                   </div>
-                  <div className="juror-header-actions">
-                    {isCompleted ? (
+                  <div className={`juror-header-actions${isEditing ? " juror-meta-editing" : ""}`}>
+                    {isEditing ? (
+                      <StatusBadge editingFlag="editing" />
+                    ) : isCompleted ? (
                       <StatusBadge variant="completed" icon={<CircleCheckBigIcon />}>
                         Completed
                       </StatusBadge>

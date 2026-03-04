@@ -1,8 +1,7 @@
-// src/admin/DashboardTab.jsx
-// ── Charts dashboard ──────────────────────────────────────────
+// src/admin/AnalysisTab.jsx
+// ── Charts dashboard (renamed from DashboardTab) ──────────────
 
 import { useEffect, useRef, useState } from "react";
-import { APP_CONFIG } from "../config";
 import { formatDashboardTs } from "./utils";
 import { DownloadIcon } from "../shared/Icons";
 import {
@@ -70,7 +69,7 @@ function DashboardEmpty() {
 }
 
 // ── Main component ────────────────────────────────────────────
-export default function DashboardTab({ dashboardStats, submittedData, lastRefresh, loading, error, semesterName = "" }) {
+export default function AnalysisTab({ dashboardStats, submittedData, lastRefresh, loading, error, semesterName = "" }) {
   const restoreRef   = useRef(null);
   const [exporting, setExporting] = useState(false);
 

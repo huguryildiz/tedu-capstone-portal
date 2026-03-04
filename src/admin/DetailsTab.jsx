@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { cmp, exportXLSX, formatTs, tsToMillis, rowKey } from "./utils";
 import { readSection, writeSection } from "./persist";
-import { FilterPopoverPortal } from "./components";
+import { FilterPopoverPortal, StatusBadge } from "./components";
 import { FilterIcon, DownloadIcon, ArrowUpDownIcon, ArrowDown01Icon, ArrowDown10Icon, ArrowDownIcon, ArrowUpIcon, XIcon } from "../shared/Icons";
 
 // Show "" for null/undefined/empty/NaN.  0 is a valid score.
@@ -33,11 +33,24 @@ export default function DetailsTab({ data, jurors, semesterName = "", summaryDat
   const [filterGroupNo,  setFilterGroupNo]  = useState(() => { const s = readSection("details"); return typeof s.filterGroupNo  === "string" ? s.filterGroupNo  : ""; });
   const [filterJuror,    setFilterJuror]    = useState(() => { const s = readSection("details"); return typeof s.filterJuror  === "string" ? s.filterJuror  : "ALL"; });
   const [filterDept,     setFilterDept]     = useState(() => { const s = readSection("details"); return typeof s.filterDept   === "string" ? s.filterDept   : "ALL"; });
+  const [filterStatus,   setFilterStatus]   = useState(() => { const s = readSection("details"); return typeof s.filterStatus === "string" ? s.filterStatus : "ALL"; });
   const [filterProjectTitle, setFilterProjectTitle] = useState(() => { const s = readSection("details"); return typeof s.filterProjectTitle === "string" ? s.filterProjectTitle : ""; });
   const [filterStudents,     setFilterStudents]     = useState(() => { const s = readSection("details"); return typeof s.filterStudents     === "string" ? s.filterStudents     : ""; });
   const [dateFrom,       setDateFrom]       = useState(() => { const s = readSection("details"); return typeof s.dateFrom     === "string" ? s.dateFrom     : ""; });
   const [dateTo,         setDateTo]         = useState(() => { const s = readSection("details"); return typeof s.dateTo       === "string" ? s.dateTo       : ""; });
   const [dateError,      setDateError]      = useState(null);
+  const jurorEditMap = useMemo(() => {
+    const map = new Map();
+    (jurors || []).forEach((j) => {
+      const editEnabled = !!(j.editEnabled ?? j.edit_enabled);
+      if (j.jurorId) map.set(j.jurorId, editEnabled);
+      if (j.key) map.set(j.key, editEnabled);
+      const name = String(j.name ?? j.juryName ?? "").trim().toLowerCase();
+      const dept = String(j.dept ?? j.juryDept ?? "").trim().toLowerCase();
+      if (name || dept) map.set(`${name}__${dept}`, editEnabled);
+    });
+    return map;
+  }, [jurors]);
   const [filterComment,  setFilterComment]  = useState(() => { const s = readSection("details"); return typeof s.filterComment === "string" ? s.filterComment : ""; });
   const [sortKey,        setSortKey]        = useState(() => {
     const s = readSection("details");
@@ -116,10 +129,10 @@ export default function DetailsTab({ data, jurors, semesterName = "", summaryDat
   useEffect(() => {
     writeSection("details", {
       filterSemester, filterGroupNo, filterJuror, filterDept, filterProjectTitle, filterStudents,
-      dateFrom, dateTo, filterComment,
+      filterStatus, dateFrom, dateTo, filterComment,
       sortKey, sortDir,
     });
-  }, [filterSemester, filterGroupNo, filterJuror, filterDept, filterProjectTitle, filterStudents, dateFrom, dateTo, filterComment, sortKey, sortDir]);
+  }, [filterSemester, filterGroupNo, filterJuror, filterDept, filterStatus, filterProjectTitle, filterStudents, dateFrom, dateTo, filterComment, sortKey, sortDir]);
 
   function isValidDateParts(yyyy, mm, dd) {
     if (yyyy < 2000 || yyyy > 2100) return false;
@@ -167,17 +180,19 @@ export default function DetailsTab({ data, jurors, semesterName = "", summaryDat
     if (filterGroupNo) count += 1;
     if (filterJuror !== "ALL") count += 1;
     if (filterDept !== "ALL") count += 1;
+    if (filterStatus !== "ALL") count += 1;
     if (filterProjectTitle) count += 1;
     if (filterStudents) count += 1;
     if (dateFrom || dateTo) count += 1;
     if (filterComment) count += 1;
     return count;
-  }, [filterSemester, filterGroupNo, filterJuror, filterDept, filterProjectTitle, filterStudents, dateFrom, dateTo, filterComment]);
+  }, [filterSemester, filterGroupNo, filterJuror, filterDept, filterStatus, filterProjectTitle, filterStudents, dateFrom, dateTo, filterComment]);
   const hasAnyFilter = activeFilterCount > 0;
   const isSemesterFilterActive = !!filterSemester || activeFilterCol === "semester";
   const isGroupNoFilterActive = !!filterGroupNo || activeFilterCol === "groupNo";
   const isJurorFilterActive = filterJuror !== "ALL" || activeFilterCol === "juror";
   const isDeptFilterActive = filterDept !== "ALL" || activeFilterCol === "dept";
+  const isStatusFilterActive = filterStatus !== "ALL" || activeFilterCol === "status";
   const isProjectTitleFilterActive = !!filterProjectTitle || activeFilterCol === "projectTitle";
   const isStudentsFilterActive = !!filterStudents || activeFilterCol === "students";
   const isDateFilterActive = !!dateFrom || !!dateTo || activeFilterCol === "timestamp";
@@ -188,6 +203,7 @@ export default function DetailsTab({ data, jurors, semesterName = "", summaryDat
     setFilterGroupNo("");
     setFilterJuror("ALL");
     setFilterDept("ALL");
+    setFilterStatus("ALL");
     setFilterProjectTitle("");
     setFilterStudents("");
     setDateFrom("");
@@ -244,11 +260,17 @@ export default function DetailsTab({ data, jurors, semesterName = "", summaryDat
       const students = Array.isArray(studentsRaw)
         ? studentsRaw.map((s) => String(s).trim()).filter(Boolean).join(", ")
         : String(studentsRaw).trim();
+      const isEditing = !!(jurorEditMap.get(row.jurorId) || jurorEditMap.get(rowKey(row)));
+      const effectiveStatus = isEditing
+        ? "editing"
+        : (row.status === "submitted" ? "submitted" : (row.status === "in_progress" ? "in_progress" : "not_started"));
       return {
         ...row,
         semester: semesterName ?? "",
         projectTitle,
         students,
+        isEditing,
+        effectiveStatus,
       };
     });
 
@@ -266,6 +288,9 @@ export default function DetailsTab({ data, jurors, semesterName = "", summaryDat
     if (filterDept !== "ALL") {
       const q = filterDept.toLowerCase();
       list = list.filter((r) => String(r.juryDept ?? "").trim().toLowerCase() === q);
+    }
+    if (filterStatus !== "ALL") {
+      list = list.filter((r) => r.effectiveStatus === filterStatus);
     }
     if (filterProjectTitle) {
       const q = filterProjectTitle.toLowerCase();
@@ -301,8 +326,8 @@ export default function DetailsTab({ data, jurors, semesterName = "", summaryDat
       return sortDir === "asc" ? cmp(av, bv) : cmp(bv, av);
     });
     return list;
-  }, [data, projectMetaById, semesterName, filterSemester, filterGroupNo, filterJuror, filterDept, filterProjectTitle, filterStudents,
-      dateFrom, dateTo, filterComment, sortKey, sortDir]);
+  }, [data, projectMetaById, semesterName, filterSemester, filterGroupNo, filterJuror, filterDept, filterStatus, filterProjectTitle, filterStudents,
+      dateFrom, dateTo, filterComment, sortKey, sortDir, jurorEditMap]);
 
   function setSort(key) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -418,6 +443,33 @@ export default function DetailsTab({ data, jurors, semesterName = "", summaryDat
             </select>
             {filterDept !== "ALL" && (
               <button className="col-filter-clear" onClick={() => { setFilterDept("ALL"); closePopover(); }}>
+                Clear
+              </button>
+            )}
+          </>
+        ),
+      };
+    }
+    if (activeFilterCol === "status") {
+      return {
+        className: "col-filter-popover col-filter-popover-portal",
+        contentKey: filterStatus,
+        content: (
+          <>
+            <select
+              autoFocus
+              value={filterStatus}
+              onChange={(e) => { setFilterStatus(e.target.value); closePopover(); }}
+              className={isStatusFilterActive ? "filter-input-active" : ""}
+            >
+              <option value="ALL">All statuses</option>
+              <option value="editing">Editing</option>
+              <option value="submitted">Submitted</option>
+              <option value="in_progress">In Progress</option>
+              <option value="not_started">Not started</option>
+            </select>
+            {filterStatus !== "ALL" && (
+              <button className="col-filter-clear" onClick={() => { setFilterStatus("ALL"); closePopover(); }}>
                 Clear
               </button>
             )}
@@ -735,6 +787,23 @@ export default function DetailsTab({ data, jurors, semesterName = "", summaryDat
                 </div>
               </th>
 
+              {/* Status */}
+              <th style={{ position: "relative", whiteSpace: "nowrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <span className={`details-col-label${isStatusFilterActive ? " filtered" : ""}`}>
+                    Status
+                  </span>
+                  <button
+                    type="button"
+                    className={`col-filter-hotspot${isStatusFilterActive ? " active filter-icon-active" : ""}`}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFilterCol("status", e); }}
+                    title="Filter by status"
+                  >
+                    <FilterIcon />
+                  </button>
+                </div>
+              </th>
+
               {/* Score columns — sort only, no filter */}
               {SCORE_COLS.map(({ key: col, label }) => (
                 <th key={col} style={{ cursor: "pointer", whiteSpace: "nowrap" }} onClick={() => setSort(col)}>
@@ -785,13 +854,14 @@ export default function DetailsTab({ data, jurors, semesterName = "", summaryDat
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={13} style={{ textAlign: "center", padding: 32, color: "#64748b" }}>
+                <td colSpan={14} style={{ textAlign: "center", padding: 32, color: "#64748b" }}>
                   No matching rows.
                 </td>
               </tr>
             )}
             {rows.map((row, i) => {
               const isIP = row.status === "in_progress";
+              const isEditing = row.isEditing;
               const projectTitle = row.projectTitle || "";
               const students = row.students || "";
               return (
@@ -813,6 +883,12 @@ export default function DetailsTab({ data, jurors, semesterName = "", summaryDat
                   </td>
                   <td className="cell-juror">{row.juryName}</td>
                   <td className="cell-dept" style={{ fontSize: 12, color: "#475569" }}>{row.juryDept}</td>
+                  <td className="cell-status">
+                    <StatusBadge
+                      status={row.status === "submitted" ? "submitted" : "in_progress"}
+                      editingFlag={isEditing ? "editing" : null}
+                    />
+                  </td>
                   <td style={{ color: isIP ? "#94a3b8" : undefined }}>{displayScore(row.technical)}</td>
                   <td style={{ color: isIP ? "#94a3b8" : undefined }}>{displayScore(row.design)}</td>
                   <td style={{ color: isIP ? "#94a3b8" : undefined }}>{displayScore(row.delivery)}</td>

@@ -193,8 +193,8 @@ export async function adminListJurors(semesterId, adminPassword) {
     juryName: j.juror_name,
     juryDept: j.juror_inst || "",
     scoredSemesters: Array.isArray(j.scored_semesters) ? j.scored_semesters : [],
+    isAssigned: j.is_assigned,
     editEnabled: j.edit_enabled,
-    editExpiresAt: j.edit_expires_at,
     totalProjects: j.total_projects,
     completedProjects: j.completed_projects,
     lockedUntil: j.locked_until,
@@ -327,7 +327,6 @@ export async function adminSetJurorEditMode(payload, adminPassword) {
     p_semester_id: payload.semesterId,
     p_juror_id: payload.jurorId,
     p_enabled: !!payload.enabled,
-    p_minutes: Number.isFinite(payload.minutes) ? payload.minutes : null,
     p_admin_password: adminPassword,
   });
   if (error) throw error;

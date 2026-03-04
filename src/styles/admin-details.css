@@ -394,9 +394,9 @@ th .sort-icon svg { vertical-align: middle; }
   flex: 0 0 auto;
 }
 
-.detail-table td:nth-child(7),
 .detail-table td:nth-child(8),
 .detail-table td:nth-child(9),
 .detail-table td:nth-child(10),
-.detail-table td:nth-child(11) { text-align: right; font-variant-numeric: tabular-nums; }
-.detail-table td:nth-child(11) strong { font-weight: 800; }
+.detail-table td:nth-child(11),
+.detail-table td:nth-child(12) { text-align: right; font-variant-numeric: tabular-nums; }
+.detail-table td:nth-child(12) strong { font-weight: 800; }

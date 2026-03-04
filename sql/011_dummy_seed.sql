@@ -8,7 +8,7 @@
 --   - 10–15 projects per semester (creative, globally-unique titles)
 --   - group_students as "Name Surname; Name Surname; ..."
 --   - juror_semester_auth (12–16 jurors per semester, overlap ensured)
---   - scores (6–12 evals per project, avg total ~75–90, 4% one criterion NULL)
+--   - scores (all assigned jurors per project, avg total ~75–90, 4% one criterion NULL)
 -- ============================================================
 
 BEGIN;
@@ -286,7 +286,7 @@ END $$;
 
 -- ------------------------------------------------------------
 -- 5) Scores
---    - 6..12 evaluations per project by assigned jurors
+--    - every assigned juror scores every project (at least 1 criterion)
 --    - avg total mostly 75..90
 --    - 4% chance exactly one criterion NULL
 --    - optional comments (~25%)
@@ -296,7 +296,6 @@ DECLARE
   v_sem record;
   v_proj record;
 
-  v_eval_count int;
   v_juror uuid;
 
   v_tech int;
@@ -314,8 +313,6 @@ DECLARE
   v_submit_hour int;
   v_submit_min int;
   v_submitted_at timestamptz;
-  v_has_any boolean;
-  v_fallback_juror uuid;
 BEGIN
   v_comments := ARRAY[
     'Strong implementation; consider expanding the evaluation section.',
@@ -335,17 +332,12 @@ BEGIN
       WHERE semester_id = v_sem.id
       ORDER BY group_no
     LOOP
-      v_eval_count := 6 + floor(random() * 7)::int; -- 6..12
-      v_has_any := false;
-
       FOR v_juror IN
         SELECT a.juror_id
         FROM public.juror_semester_auth a
         WHERE a.semester_id = v_sem.id
-        ORDER BY random()
-        LIMIT v_eval_count
+        ORDER BY a.juror_id
       LOOP
-        v_has_any := true;
         -- base (keeps totals generally high): 20..30 for 3 criteria, 6..10 teamwork
         v_tech := 20 + floor(random() * 11)::int; -- 20..30
         v_writ := 20 + floor(random() * 11)::int; -- 20..30
@@ -415,52 +407,6 @@ BEGIN
             AND juror_id = v_juror;
         END IF;
       END LOOP;
-
-      -- ensure at least one score exists per project
-      IF NOT v_has_any THEN
-        SELECT a.juror_id
-          INTO v_fallback_juror
-        FROM public.juror_semester_auth a
-        WHERE a.semester_id = v_sem.id
-        ORDER BY a.juror_id
-        LIMIT 1;
-
-        IF v_fallback_juror IS NOT NULL THEN
-          v_tech := 20 + floor(random() * 11)::int;
-          v_writ := 20 + floor(random() * 11)::int;
-          v_oral := 20 + floor(random() * 11)::int;
-          v_team :=  6 + floor(random() * 5)::int;
-
-          v_day_offset := floor(
-            random() * (GREATEST(0, (v_sem.ends_on - v_sem.starts_on)) + 1)
-          )::int;
-          v_submit_date := v_sem.starts_on + v_day_offset;
-          v_submit_hour := 13 + floor(random() * 4)::int;
-          v_submit_min := floor(random() * 60)::int;
-          IF v_submit_hour = 16 THEN
-            v_submit_min := 0;
-          END IF;
-          v_submitted_at := (v_submit_date::timestamptz)
-            + make_interval(hours => v_submit_hour, mins => v_submit_min);
-
-          INSERT INTO public.scores
-            (semester_id, project_id, juror_id, technical, written, oral, teamwork, comment)
-          VALUES
-            (v_sem.id, v_proj.id, v_fallback_juror, v_tech, v_writ, v_oral, v_team, null)
-          ON CONFLICT (semester_id, project_id, juror_id) DO UPDATE
-            SET technical = EXCLUDED.technical,
-                written   = EXCLUDED.written,
-                oral      = EXCLUDED.oral,
-                teamwork  = EXCLUDED.teamwork,
-                comment   = EXCLUDED.comment;
-
-          UPDATE public.scores
-          SET submitted_at = v_submitted_at
-          WHERE semester_id = v_sem.id
-            AND project_id = v_proj.id
-            AND juror_id = v_fallback_juror;
-        END IF;
-      END IF;
     END LOOP;
   END LOOP;
 END $$;

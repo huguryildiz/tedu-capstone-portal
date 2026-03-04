@@ -216,6 +216,9 @@
   flex-wrap: wrap;
   min-width: 0;
 }
+.juror-header-actions.juror-meta-editing {
+  justify-content: flex-start;
+}
 .juror-header-actions .status-badge {
   display: inline-flex;
   align-items: center;

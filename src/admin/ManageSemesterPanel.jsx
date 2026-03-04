@@ -120,6 +120,7 @@ export default function ManageSemesterPanel({
 
       {isOpen && (
         <div className="manage-card-body">
+          <div className="manage-card-desc">Set the active term and maintain semester dates.</div>
           <div className="manage-field">
             <label className="manage-label">Active Semester</label>
             <div className="manage-row">

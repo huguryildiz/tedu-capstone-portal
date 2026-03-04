@@ -19,13 +19,12 @@ export default function ManagePermissionsPanel({
     setLocal(settings);
   }, [settings]);
 
-  const syncField = (patch) => setLocal((prev) => ({ ...prev, ...patch }));
-  const toBool = (v) => v === true || v === "true" || v === "t" || v === 1;
-  const asDate = (v) => {
-    if (!v) return null;
-    const d = new Date(v);
-    return Number.isNaN(d.getTime()) ? null : d;
+  const handleEvalLockChange = (checked) => {
+    const next = { ...local, evalLockActive: checked };
+    setLocal(next);
+    onSave?.(next);
   };
+  const toBool = (v) => v === true || v === "true" || v === "t" || v === 1;
   const orderedJurors = Array.isArray(jurors)
     ? [...jurors].sort((a, b) => {
         const aName = (a.juryName || a.juror_name || "").toLowerCase();
@@ -33,6 +32,13 @@ export default function ManagePermissionsPanel({
         return aName.localeCompare(bName);
       })
     : [];
+  const hasAssignedFlag = orderedJurors.some((j) =>
+    j.isAssigned !== undefined && j.isAssigned !== null
+    || j.is_assigned !== undefined && j.is_assigned !== null
+  );
+  const permissionJurors = hasAssignedFlag
+    ? orderedJurors.filter((j) => toBool(j.isAssigned ?? j.is_assigned))
+    : orderedJurors;
 
   return (
     <div className={`manage-card${isMobile ? " is-collapsible" : ""}`}>
@@ -51,62 +57,40 @@ export default function ManagePermissionsPanel({
 
       {(!isMobile || isOpen) && (
         <div className="manage-card-body">
-          <div className="manage-field">
-            <label className="manage-label">Edit window (minutes)</label>
-            <input
-              type="number"
-              min="0"
-              className="manage-input"
-              value={local.editWindowMinutes}
-              onChange={(e) => syncField({ editWindowMinutes: Number(e.target.value) })}
-            />
-            <div className="manage-hint">Set to 0 for no expiry.</div>
-          </div>
-
+          <div className="manage-card-desc">Toggle edit access per juror and lock evaluations for the active semester.</div>
           <div className="manage-field">
             <label className="manage-toggle">
-              <input
-                type="checkbox"
-                checked={local.evalLockActive}
-                onChange={(e) => syncField({ evalLockActive: e.target.checked })}
-              />
-              Lock evaluations for the active semester
+              <span className="manage-toggle-text">Lock evaluations for the active semester</span>
+              <span className="manage-toggle-control">
+                <input
+                  type="checkbox"
+                  checked={local.evalLockActive}
+                  onChange={(e) => handleEvalLockChange(e.target.checked)}
+                />
+                <span className="manage-toggle-track" />
+              </span>
             </label>
           </div>
 
-          <div className="manage-list-header">Edit Mode by Juror</div>
           <div className="manage-list">
-            {(showAll ? orderedJurors : orderedJurors.slice(0, 4)).map((j) => {
+            {(showAll ? permissionJurors : permissionJurors.slice(0, 4)).map((j) => {
               const totalProjects = Number(j.totalProjects ?? j.total_projects ?? 0);
               const completedProjects = Number(j.completedProjects ?? j.completed_projects ?? 0);
               const isCompleted = totalProjects > 0 && completedProjects >= totalProjects;
               const completionHint = `Finish evaluations first (${completedProjects}/${totalProjects})`;
               const editEnabled = toBool(j.editEnabled ?? j.edit_enabled);
-              const expiresAt = asDate(j.editExpiresAt ?? j.edit_expires_at);
-              const isExpired = Boolean(expiresAt && expiresAt <= new Date());
-              const editActive = editEnabled && !isExpired;
               return (
                 <div key={j.jurorId || j.juror_id} className="manage-item">
                   <div>
                     <div className="manage-item-title">{j.juryName || j.juror_name}</div>
                     <div className="manage-item-sub">{j.juryDept || j.juror_inst}</div>
                     <div className="manage-item-meta">
-                      <span className="manage-item-completion">
+                      <span className={`manage-item-completion${isCompleted ? " is-complete" : " is-incomplete"}`}>
                         Completed {completedProjects}/{totalProjects}
                       </span>
                       {!isCompleted && (
-                        <span className="manage-item-helper">
+                        <span className="manage-item-helper is-warning">
                           {completionHint}
-                        </span>
-                      )}
-                      {isCompleted && editActive && expiresAt && (
-                        <span className="manage-item-helper">
-                          Expires {expiresAt.toLocaleString()}
-                        </span>
-                      )}
-                      {isCompleted && editEnabled && isExpired && (
-                        <span className="manage-item-helper">
-                          Edit window expired
                         </span>
                       )}
                     </div>
@@ -114,10 +98,10 @@ export default function ManagePermissionsPanel({
                   <div className="manage-item-actions">
                     <div className="manage-toggle-wrap">
                       <span className="manage-toggle-label">Edit Mode</span>
-                      <label className="manage-switch">
+                      <label className={`manage-switch${isCompleted ? " is-ready" : " is-locked"}`}>
                         <input
                           type="checkbox"
-                          checked={editActive}
+                          checked={editEnabled}
                           disabled={!isCompleted}
                           title={!isCompleted ? completionHint : ""}
                           onChange={(e) => {
@@ -135,26 +119,21 @@ export default function ManagePermissionsPanel({
                 </div>
               );
             })}
-            {orderedJurors.length === 0 && (
-              <div className="manage-empty">No jurors found.</div>
+            {permissionJurors.length === 0 && (
+              <div className="manage-empty">No jurors assigned to the active semester.</div>
             )}
           </div>
 
-          {orderedJurors.length > 4 && (
+          {permissionJurors.length > 4 && (
             <button
               className="manage-btn ghost"
               type="button"
               onClick={() => setShowAll((v) => !v)}
             >
-              {showAll ? "Show fewer jurors" : `Show all jurors (${orderedJurors.length})`}
+              {showAll ? "Show fewer jurors" : `Show all jurors (${permissionJurors.length})`}
             </button>
           )}
 
-          <div className="manage-card-actions">
-            <button className="manage-btn primary" type="button" onClick={() => onSave(local)}>
-              Save Permissions
-            </button>
-          </div>
         </div>
       )}
     </div>

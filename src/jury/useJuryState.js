@@ -138,7 +138,6 @@ export default function useJuryState() {
   const [groupSynced, setGroupSynced] = useState({});
   const [editMode,    setEditMode]    = useState(false);
   const [editAllowed, setEditAllowed] = useState(false);
-  const [editExpiresAt, setEditExpiresAt] = useState("");
   const [editLockActive, setEditLockActive] = useState(false);
 
   const [doneScores,   setDoneScores]   = useState(null);
@@ -526,7 +525,6 @@ export default function useJuryState() {
       setLoadingState(null);
       const canEdit = !!editState?.edit_allowed;
       setEditAllowed(canEdit);
-      setEditExpiresAt(editState?.edit_expires_at || "");
       setEditLockActive(!!editState?.lock_active);
       const allCompleteNow = uiProjects.length > 0 && isAllComplete(seedScores, uiProjects);
       if (allCompleteNow) {
@@ -638,7 +636,6 @@ export default function useJuryState() {
     setGroupSynced({});
     setEditMode(false);
     setEditAllowed(false);
-    setEditExpiresAt("");
     setEditLockActive(false);
     setDoneScores(null);
     setDoneComments(null);
@@ -658,30 +655,6 @@ export default function useJuryState() {
     doneFiredRef.current       = false;
     submitPendingRef.current   = false;
   }, []);
-
-  useEffect(() => {
-    if (!editExpiresAt) return;
-    const expires = new Date(editExpiresAt);
-    if (Number.isNaN(expires.getTime())) return;
-    const now = Date.now();
-    const ms = expires.getTime() - now;
-    if (ms <= 0) {
-      setEditAllowed(false);
-      if (editMode) {
-        setEditMode(false);
-        setStep("done");
-      }
-      return;
-    }
-    const t = setTimeout(() => {
-      setEditAllowed(false);
-      if (editMode) {
-        setEditMode(false);
-        setStep("done");
-      }
-    }, ms);
-    return () => clearTimeout(t);
-  }, [editExpiresAt, editMode]);
 
   // ─────────────────────────────────────────────────────────
   return {
@@ -713,7 +686,7 @@ export default function useJuryState() {
 
     // Derived
     project, progressPct, allComplete,
-    groupSynced, editMode, editAllowed, editExpiresAt, editLockActive,
+    groupSynced, editMode, editAllowed, editLockActive,
     doneScores, doneComments,
 
     // Loading

@@ -1,7 +1,7 @@
 // src/components/admin/AdminSecurityPanel.jsx
 
 import { useState } from "react";
-import { ChevronDownIcon, LockIcon } from "../../shared/Icons";
+import { ChevronDownIcon, ShieldUserIcon } from "../../shared/Icons";
 import { adminBootstrapPassword, adminChangePassword } from "../../shared/api";
 
 export default function AdminSecurityPanel({ isMobile, isOpen, onToggle, onPasswordChanged }) {
@@ -79,7 +79,7 @@ export default function AdminSecurityPanel({ isMobile, isOpen, onToggle, onPassw
         aria-expanded={isOpen}
       >
         <div className="manage-card-title">
-          <span className="manage-card-icon" aria-hidden="true"><LockIcon /></span>
+          <span className="manage-card-icon" aria-hidden="true"><ShieldUserIcon /></span>
           Admin Security
         </div>
         {isMobile && <ChevronDownIcon className={`manage-chevron${isOpen ? " open" : ""}`} />}
@@ -87,6 +87,7 @@ export default function AdminSecurityPanel({ isMobile, isOpen, onToggle, onPassw
 
       {(!isMobile || isOpen) && (
         <div className="manage-card-body">
+          <div className="manage-card-desc">Update the admin password to keep access secure.</div>
           <div className="manage-field">
             <label className="manage-label">Current Password</label>
             <input
