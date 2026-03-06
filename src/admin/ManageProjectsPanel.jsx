@@ -1,7 +1,7 @@
 // src/admin/ManageProjectsPanel.jsx
 
 import { useRef, useState } from "react";
-import { CalendarRangeIcon, ChevronDownIcon, FileTextIcon, FolderKanbanIcon, PencilIcon, UsersLucideIcon } from "../shared/Icons";
+import { CalendarRangeIcon, ChevronDownIcon, FileTextIcon, FolderKanbanIcon, PencilIcon, SearchIcon, UsersLucideIcon, CirclePlusIcon } from "../shared/Icons";
 import DangerIconButton from "../components/admin/DangerIconButton";
 import LastActivity from "./LastActivity";
 
@@ -71,6 +71,7 @@ export default function ManageProjectsPanel({
   const [showMore, setShowMore] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [form, setForm] = useState({ group_no: "", project_title: "", group_students: "" });
+  const [addError, setAddError] = useState("");
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({ group_no: "", project_title: "", group_students: "" });
   const [importError, setImportError] = useState("");
@@ -254,12 +255,10 @@ export default function ManageProjectsPanel({
     const skippedExisting = data.filter((r) => existingGroupNos.has(r.group_no));
     const toImport = data.filter((r) => !existingGroupNos.has(r.group_no));
 
-    if (skippedExisting.length) {
-      const skippedList = Array.from(new Set(skippedExisting.map((r) => r.group_no))).join(", ");
-      setImportWarning(`Skipped existing group_no: ${skippedList}.`);
-    } else {
-      setImportWarning("");
-    }
+    const localWarning = skippedExisting.length
+      ? `Skipped existing group_no: ${Array.from(new Set(skippedExisting.map((r) => r.group_no))).join(", ")}.`
+      : "";
+    setImportWarning(localWarning);
 
     if (!toImport.length) {
       setImportError("");
@@ -267,8 +266,13 @@ export default function ManageProjectsPanel({
     }
 
     setImportError("");
-    onImport(toImport);
-    if (!skippedExisting.length) setShowImport(false);
+    const res = await onImport(toImport);
+    const serverSkipped = Number(res?.skipped || 0);
+    if (serverSkipped > 0) {
+      const extra = `Skipped ${serverSkipped} existing groups during import.`;
+      setImportWarning(localWarning ? `${localWarning} ${extra}` : extra);
+    }
+    if (!skippedExisting.length && serverSkipped === 0) setShowImport(false);
   };
 
   const handleFileChange = async (e) => {
@@ -307,12 +311,21 @@ export default function ManageProjectsPanel({
             >
               Import CSV
             </button>
-            <button className="manage-btn primary" type="button" onClick={() => setShowAdd(true)}>
-              Add Group
+            <button
+              className="manage-btn primary"
+              type="button"
+              onClick={() => {
+                setAddError("");
+                setShowAdd(true);
+              }}
+            >
+              <span aria-hidden="true"><CirclePlusIcon className="manage-btn-icon" /></span>
+              Group
             </button>
           </div>
 
           <div className="manage-search">
+            <span className="manage-search-icon" aria-hidden="true"><SearchIcon /></span>
             <input
               className="manage-input manage-search-input"
               type="text"
@@ -376,9 +389,13 @@ export default function ManageProjectsPanel({
                   <input
                     className="manage-input"
                     value={form.group_no}
-                    onChange={(e) => setForm((f) => ({ ...f, group_no: e.target.value }))}
+                    onChange={(e) => {
+                      setForm((f) => ({ ...f, group_no: e.target.value }));
+                      if (addError) setAddError("");
+                    }}
                     placeholder="1"
                   />
+                  {addError && <div className="manage-field-error">{addError}</div>}
                   <label className="manage-label">Project title</label>
                   <input
                     className="manage-input"
@@ -404,8 +421,18 @@ export default function ManageProjectsPanel({
                     type="button"
                     disabled={!canSubmit}
                     onClick={() => {
+                      const groupNo = Number(form.group_no);
+                      const existingGroupNos = new Set(
+                        (projects || [])
+                          .map((p) => Number(p.group_no))
+                          .filter((n) => Number.isFinite(n) && n > 0)
+                      );
+                      if (Number.isFinite(groupNo) && existingGroupNos.has(groupNo)) {
+                        setAddError(`Group ${groupNo} already exists. Use Edit to update.`);
+                        return;
+                      }
                       onAddGroup({
-                        group_no: Number(form.group_no),
+                        group_no: groupNo,
                         project_title: form.project_title.trim(),
                         group_students: form.group_students.trim(),
                       });

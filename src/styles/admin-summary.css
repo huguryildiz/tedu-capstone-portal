@@ -142,11 +142,12 @@
   text-overflow: ellipsis;
 }
 .group-card-full-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
   line-height: 1.35;
 }
+.group-card-full-title .entity-project-title svg { color: #94a3b8; }
 .group-card-desc {
   display: inline-flex;
   align-items: center;
@@ -166,7 +167,7 @@
 .group-card-desc-text { min-width: 0; }
 .group-card-score  { display: inline-flex; align-items: baseline; gap: 6px; flex-shrink: 0; margin-left: auto; white-space: nowrap; }
 .group-card-score-value {
-  font-size: 30px; font-weight: 800; font-family: 'DM Mono', monospace; color: #1e293b;
+  font-size: 30px; font-weight: 800; font-family: var(--font-ui); color: #1e293b;
 }
 .rank-top1 .avg-score { color: #c89b2f; }
 .rank-top2 .avg-score { color: #64748b; }
@@ -198,6 +199,19 @@
   max-width: 100%;
   min-width: 0;
   flex: 1 1 auto;
+}
+
+@media (max-width: 480px) {
+  .group-card-name { font-size: 12px; }
+  .group-card-name-icon svg { width: 12px; }
+  .group-card-full-title { font-size: 11px; }
+  .group-card-score-value { font-size: 14px; }
+  .avg-score { font-size: 14px; }
+  .group-card-score-label.sigma { font-size: 8px; }
+  .rank-desc { font-size: 11px; }
+  .mini-bar-row { gap: 6px; }
+  .mini-label { font-size: 10px; width: 46px; }
+  .mini-val { font-size: 10px; min-width: 24px; }
 }
 .group-card-students-icon svg { width: 14px; height: 14px; color: #94a3b8; }
 .group-card-desc::-webkit-scrollbar,
@@ -247,7 +261,7 @@
 .mini-label        { font-size: 11px; color: var(--gray-500); width: 52px; flex-shrink: 0; }
 .mini-bar-track    { flex: 1; height: 6px; background: #eef2ff; border-radius: 999px; overflow: hidden; box-shadow: inset 0 1px 2px rgba(15,23,42,0.08); }
 .mini-bar-fill     { height: 100%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); border-radius: 999px; transition: width .3s; }
-.mini-val          { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--gray-700); min-width: 28px; text-align: right; }
+.mini-val          { font-size: 11px; font-family: var(--font-ui); color: var(--gray-700); min-width: 28px; text-align: right; }
 
 @media (hover: hover) and (min-width: 481px) {
   .rank-card:hover {

@@ -129,7 +129,8 @@ export default function JurorsTab({ jurorStats, groups = [] }) {
           const statusClass =
             isEditing                 ? "juror-card-editing"       :
             overallStatus === "all_submitted" ? "juror-card-all-submitted" :
-            overallStatus === "in_progress"   ? "juror-card-in-progress"   : "";
+            overallStatus === "in_progress"   ? "juror-card-in-progress"   :
+            overallStatus === "not_started"   ? "juror-card-not-started"   : "";
 
           return (
             <div key={key} className={`juror-card ${statusClass}`}>

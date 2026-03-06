@@ -4,14 +4,15 @@
 
 import { useState } from "react";
 import { readSection, writeSection } from "./persist";
+import { Grid3x3Icon, MedalIcon, TableIcon } from "../shared/Icons";
 import SummaryTab from "./SummaryTab";
 import DetailsTab from "./DetailsTab";
 import MatrixTab  from "./MatrixTab";
 
 const VIEWS = [
-  { id: "rankings", label: "Rankings" },
-  { id: "table",    label: "Table"    },
-  { id: "matrix",   label: "Matrix"   },
+  { id: "rankings", label: "Rankings", icon: MedalIcon },
+  { id: "table",    label: "Table",    icon: TableIcon },
+  { id: "matrix",   label: "Matrix",   icon: Grid3x3Icon },
 ];
 
 export default function ResultsTab({
@@ -38,15 +39,19 @@ export default function ResultsTab({
   return (
     <div className="results-tab">
       <div className="results-view-switcher">
-        {VIEWS.map((v) => (
-          <button
-            key={v.id}
-            className={`results-view-btn${view === v.id ? " active" : ""}`}
-            onClick={() => switchView(v.id)}
-          >
-            {v.label}
-          </button>
-        ))}
+        {VIEWS.map((v) => {
+          const Icon = v.icon;
+          return (
+            <button
+              key={v.id}
+              className={`results-view-btn${view === v.id ? " active" : ""}`}
+              onClick={() => switchView(v.id)}
+            >
+              <span className="results-view-icon" aria-hidden="true"><Icon /></span>
+              <span className="results-view-label">{v.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {view === "rankings" && (
@@ -56,6 +61,7 @@ export default function ResultsTab({
         <DetailsTab
           data={rawScores}
           jurors={jurors}
+          assignedJurors={matrixJurors || jurors}
           jurorColorMap={jurorColorMap}
           groups={groups}
           semesterName={semesterName}

@@ -12,12 +12,14 @@ import {
   adminCreateSemester,
   adminUpdateSemester,
   adminListProjects,
+  adminCreateProject,
   adminUpsertProject,
   adminCreateJuror,
   adminUpdateJuror,
   adminResetJurorPin,
   adminSetJurorEditMode,
   adminDeleteEntity,
+  adminDeleteCounts,
   adminGetSettings,
   adminListAuditLogs,
   adminSetSetting,
@@ -172,6 +174,7 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
   const [error, setError] = useState("");
   const [resetPinInfo, setResetPinInfo] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteCounts, setDeleteCounts] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState("");
@@ -213,6 +216,15 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
     const active = sems.find((s) => s.is_active) || sems[0];
     setActiveSemesterId(active?.id || "");
   }, []);
+
+  const refreshSemesters = useCallback(async () => {
+    const sems = await listSemesters();
+    setSemesterList(sems);
+    if (!activeSemesterId || !sems.some((s) => s.id === activeSemesterId)) {
+      const active = sems.find((s) => s.is_active) || sems[0];
+      setActiveSemesterId(active?.id || "");
+    }
+  }, [activeSemesterId]);
 
   const loadProjects = useCallback(async (semesterId) => {
     if (!semesterId || !adminPass) return;
@@ -348,6 +360,21 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
     if (!adminPass) return;
     loadAuditLogs(auditFilters);
   }, [adminPass, auditFilters, loadAuditLogs]);
+
+  // Background refresh (no full-page reload).
+  useEffect(() => {
+    if (!adminPass) return;
+    const interval = setInterval(() => {
+      if (!activeSemesterId) return;
+      Promise.all([
+        loadProjects(activeSemesterId),
+        loadJurors(),
+        loadSettings(),
+      ]).catch(() => {});
+      refreshSemesters().catch(() => {});
+    }, 5_000);
+    return () => clearInterval(interval);
+  }, [adminPass, activeSemesterId, loadProjects, loadJurors, loadSettings, refreshSemesters]);
 
   const visibleAuditLogs = useMemo(() => {
     const query = auditSearch.trim().toLowerCase();
@@ -536,7 +563,17 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
       }
       setMessage("Semester created.");
     } catch (e) {
-      setError(e?.message || "Could not create semester.");
+      const msg = String(e?.message || "");
+      const msgLower = msg.toLowerCase();
+      if (msg.includes("semester_name_exists")
+        || msgLower.includes("semesters_name_ci_unique")
+        || msgLower.includes("duplicate key value violates unique constraint")) {
+        setError("Semester name already exists.");
+      } else if (msg.includes("semester_name_required")) {
+        setError("Semester name is required.");
+      } else {
+        setError(msg || "Could not create semester.");
+      }
     } finally {
       setLoading(false);
     }
@@ -557,7 +594,17 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
       });
       setMessage("Semester updated.");
     } catch (e) {
-      setError(e?.message || "Could not update semester.");
+      const msg = String(e?.message || "");
+      const msgLower = msg.toLowerCase();
+      if (msg.includes("semester_name_exists")
+        || msgLower.includes("semesters_name_ci_unique")
+        || msgLower.includes("duplicate key value violates unique constraint")) {
+        setError("Semester name already exists.");
+      } else if (msg.includes("semester_name_required")) {
+        setError("Semester name is required.");
+      } else {
+        setError(msg || "Could not update semester.");
+      }
     } finally {
       setLoading(false);
     }
@@ -569,19 +616,45 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
     setError("");
     setLoading(true);
     try {
+      let skipped = 0;
       for (const row of rows) {
-        const res = await adminUpsertProject({ ...row, semesterId: activeSemesterId }, adminPass);
-        applyProjectPatch({
-          id: res?.project_id || res?.projectId || undefined,
-          semester_id: activeSemesterId,
-          group_no: row.group_no,
-          project_title: row.project_title,
-          group_students: row.group_students,
-        });
+        try {
+          const res = await adminCreateProject({ ...row, semesterId: activeSemesterId }, adminPass);
+          applyProjectPatch({
+            id: res?.project_id || res?.projectId || undefined,
+            semester_id: activeSemesterId,
+            group_no: row.group_no,
+            project_title: row.project_title,
+            group_students: row.group_students,
+          });
+        } catch (e) {
+          const msg = String(e?.message || "");
+          const msgLower = msg.toLowerCase();
+          if (msg.includes("project_group_exists")
+            || msgLower.includes("projects_semester_group_no_key")
+            || msgLower.includes("duplicate key value violates unique constraint")) {
+            skipped += 1;
+            continue;
+          }
+          throw e;
+        }
       }
-      setMessage("Projects imported.");
+      setMessage(
+        skipped > 0
+          ? `Projects imported. Skipped ${skipped} existing groups.`
+          : "Projects imported."
+      );
+      return { skipped };
     } catch (e) {
-      setError(e?.message || "Could not import projects.");
+      const msg = String(e?.message || "");
+      const msgLower = msg.toLowerCase();
+      if (msg.includes("project_group_exists")
+        || msgLower.includes("projects_semester_group_no_key")
+        || msgLower.includes("duplicate key value violates unique constraint")) {
+        setError("Some groups already exist. Refresh and try again.");
+      } else {
+        setError(msg || "Could not import projects.");
+      }
     } finally {
       setLoading(false);
     }
@@ -593,7 +666,7 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
     setError("");
     setLoading(true);
     try {
-      const res = await adminUpsertProject({ ...row, semesterId: activeSemesterId }, adminPass);
+      const res = await adminCreateProject({ ...row, semesterId: activeSemesterId }, adminPass);
       applyProjectPatch({
         id: res?.project_id || res?.projectId || undefined,
         semester_id: activeSemesterId,
@@ -603,7 +676,15 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
       });
       setMessage("Group saved.");
     } catch (e) {
-      setError(e?.message || "Could not save group.");
+      const msg = String(e?.message || "");
+      const msgLower = msg.toLowerCase();
+      if (msg.includes("project_group_exists")
+        || msgLower.includes("projects_semester_group_no_key")
+        || msgLower.includes("duplicate key value violates unique constraint")) {
+        setError(`Group ${row.group_no} already exists. Use Edit to update.`);
+      } else {
+        setError(msg || "Could not save group.");
+      }
     } finally {
       setLoading(false);
     }
@@ -657,7 +738,15 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
       }
       setMessage("Juror added.");
     } catch (e) {
-      setError(e?.message || "Could not add juror.");
+      const msg = String(e?.message || "");
+      const msgLower = msg.toLowerCase();
+      if (msg.includes("juror_exists")
+        || msgLower.includes("jurors_name_inst_norm_uniq")
+        || msgLower.includes("duplicate key value violates unique constraint")) {
+        setError("Juror already exists.");
+      } else {
+        setError(msg || "Could not add juror.");
+      }
     } finally {
       setLoading(false);
     }
@@ -668,29 +757,55 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
     setError("");
     setLoading(true);
     try {
+      let skipped = 0;
       for (const row of rows) {
-        const created = await adminCreateJuror(row, adminPass);
-        if (created?.juror_id) {
-          applyJurorPatch({
-            juror_id: created.juror_id,
-            juror_name: created.juror_name,
-            juror_inst: created.juror_inst,
-            locked_until: null,
-            last_seen_at: null,
-            is_locked: false,
-            is_assigned: false,
-            scored_semesters: [],
-            edit_enabled: false,
-            final_submitted_at: null,
-            last_activity_at: null,
-            total_projects: projects.length,
-            completed_projects: 0,
-          });
+        try {
+          const created = await adminCreateJuror(row, adminPass);
+          if (created?.juror_id) {
+            applyJurorPatch({
+              juror_id: created.juror_id,
+              juror_name: created.juror_name,
+              juror_inst: created.juror_inst,
+              locked_until: null,
+              last_seen_at: null,
+              is_locked: false,
+              is_assigned: false,
+              scored_semesters: [],
+              edit_enabled: false,
+              final_submitted_at: null,
+              last_activity_at: null,
+              total_projects: projects.length,
+              completed_projects: 0,
+            });
+          }
+        } catch (e) {
+          const msg = String(e?.message || "");
+          const msgLower = msg.toLowerCase();
+          if (msg.includes("juror_exists")
+            || msgLower.includes("jurors_name_inst_norm_uniq")
+            || msgLower.includes("duplicate key value violates unique constraint")) {
+            skipped += 1;
+            continue;
+          }
+          throw e;
         }
       }
-      setMessage("Jurors imported.");
+      setMessage(
+        skipped > 0
+          ? `Jurors imported. Skipped ${skipped} existing jurors.`
+          : "Jurors imported."
+      );
+      return { skipped };
     } catch (e) {
-      setError(e?.message || "Could not import jurors.");
+      const msg = String(e?.message || "");
+      const msgLower = msg.toLowerCase();
+      if (msg.includes("juror_exists")
+        || msgLower.includes("jurors_name_inst_norm_uniq")
+        || msgLower.includes("duplicate key value violates unique constraint")) {
+        setError("Some jurors already exist. Refresh and try again.");
+      } else {
+        setError(msg || "Could not import jurors.");
+      }
     } finally {
       setLoading(false);
     }
@@ -804,9 +919,15 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
     setAuditSearch("");
   };
 
-  const handleRequestDelete = (target) => {
+  const handleRequestDelete = async (target) => {
     if (!target || !target.id) return;
     setDeleteTarget(target);
+    setDeleteCounts(null);
+    if (!adminPass) return;
+    try {
+      const counts = await adminDeleteCounts(target.type, target.id, adminPass);
+      setDeleteCounts(counts);
+    } catch (_) { /* counts are optional */ }
   };
 
   const mapDeleteError = (e) => {
@@ -816,15 +937,6 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
     }
     if (msg.includes("incorrect_delete_password") || msg.includes("unauthorized")) {
       return "Incorrect delete password.";
-    }
-    if (msg.includes("semester_has_dependencies")) {
-      return "Cannot delete semester with existing projects or scores.";
-    }
-    if (msg.includes("project_has_scores")) {
-      return "Cannot delete project with existing scores.";
-    }
-    if (msg.includes("juror_has_scores")) {
-      return "Cannot delete juror with existing scores.";
     }
     if (msg.includes("not_found")) {
       return "Item not found.";
@@ -1005,8 +1117,9 @@ export default function ManagePage({ adminPass, onAdminPasswordChange }) {
       <DeleteConfirmDialog
         open={!!deleteTarget}
         targetLabel={deleteTarget?.label}
+        counts={deleteCounts}
         onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
+          if (!open) { setDeleteTarget(null); setDeleteCounts(null); }
         }}
         onConfirm={async (password) => {
           try {

@@ -176,6 +176,7 @@ export async function exportXLSX(rows, { semesterName = "", summaryData = [] } =
     "group_students",
     "juror_name",
     "juror_inst",
+    "status",
     "technical",
     "written",
     "oral",
@@ -193,6 +194,7 @@ export async function exportXLSX(rows, { semesterName = "", summaryData = [] } =
     studentsMap.get(r.projectId) ?? "",
     r.juryName    ?? "",
     r.juryDept    ?? "",
+    r.effectiveStatus ?? r.status ?? "",
     exportScoreValue(r.technical),
     exportScoreValue(r.design),    // written in DB
     exportScoreValue(r.delivery),  // oral in DB
@@ -205,9 +207,9 @@ export async function exportXLSX(rows, { semesterName = "", summaryData = [] } =
 
   const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
   // semester(A), group_no(B), project_title(C), group_students(D),
-  // juror_name(E), juror_inst(F), technical(G), written(H), oral(I),
-  // teamwork(J), total(K), updated_at(L), final_submitted_at(M), comment(N)
-  ws["!cols"] = [18, 8, 32, 42, 24, 26, 11, 9, 7, 11, 8, 24, 24, 32].map((w) => ({ wch: w }));
+  // juror_name(E), juror_inst(F), status(G), technical(H), written(I),
+  // oral(J), teamwork(K), total(L), updated_at(M), final_submitted_at(N), comment(O)
+  ws["!cols"] = [18, 8, 32, 42, 24, 26, 12, 11, 9, 7, 11, 8, 24, 24, 32].map((w) => ({ wch: w }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Jury Evaluations");
   XLSX.writeFile(wb, buildExportFilename("details", semesterName));

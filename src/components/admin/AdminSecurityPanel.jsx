@@ -1,7 +1,7 @@
 // src/components/admin/AdminSecurityPanel.jsx
 
 import { useState } from "react";
-import { ChevronDownIcon, ShieldUserIcon } from "../../shared/Icons";
+import { ChevronDownIcon, ShieldUserIcon, TriangleAlertLucideIcon } from "../../shared/Icons";
 import { adminBootstrapPassword, adminChangePassword, adminChangeDeletePassword, adminBootstrapBackupPassword, adminChangeBackupPassword } from "../../shared/api";
 
 export default function AdminSecurityPanel({
@@ -313,6 +313,10 @@ export default function AdminSecurityPanel({
 
             {activeTab === "delete" && (
               <div className="manage-mini-card">
+                <div className="manage-mini-card-title manage-title-with-icon">
+                  <span className="manage-title-icon" aria-hidden="true"><TriangleAlertLucideIcon /></span>
+                  Delete Password
+                </div>
                 <div className="manage-mini-card-body">
                   <div className="manage-field">
                     <label className="manage-label">Current Delete Password</label>

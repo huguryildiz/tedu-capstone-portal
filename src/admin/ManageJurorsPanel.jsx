@@ -7,7 +7,9 @@ import {
   KeyRoundIcon,
   LockIcon,
   PencilIcon,
+  SearchIcon,
   UserRoundCheckIcon,
+  CirclePlusIcon,
 } from "../shared/Icons";
 import DangerIconButton from "../components/admin/DangerIconButton";
 import LastActivity from "./LastActivity";
@@ -188,16 +190,17 @@ export default function ManageJurorsPanel({
     const skippedExisting = data.filter((r) => existingKeys.has(r._key));
     const toImport = data.filter((r) => !existingKeys.has(r._key));
 
-    if (skippedExisting.length) {
-      const preview = skippedExisting
-        .slice(0, 4)
-        .map((r) => `${r.juror_name} / ${r.juror_inst}`)
-        .join("; ");
-      const more = skippedExisting.length > 4 ? ` (+${skippedExisting.length - 4} more)` : "";
-      setImportWarning(`Skipped existing jurors: ${preview}${more}.`);
-    } else {
-      setImportWarning("");
-    }
+    const localWarning = skippedExisting.length
+      ? (() => {
+          const preview = skippedExisting
+            .slice(0, 4)
+            .map((r) => `${r.juror_name} / ${r.juror_inst}`)
+            .join("; ");
+          const more = skippedExisting.length > 4 ? ` (+${skippedExisting.length - 4} more)` : "";
+          return `Skipped existing jurors: ${preview}${more}.`;
+        })()
+      : "";
+    setImportWarning(localWarning);
 
     if (!toImport.length) {
       setImportError("");
@@ -205,8 +208,13 @@ export default function ManageJurorsPanel({
     }
 
     setImportError("");
-    onImport?.(toImport.map(({ juror_name, juror_inst }) => ({ juror_name, juror_inst })));
-    if (!skippedExisting.length) setShowImport(false);
+    const res = await onImport?.(toImport.map(({ juror_name, juror_inst }) => ({ juror_name, juror_inst })));
+    const serverSkipped = Number(res?.skipped || 0);
+    if (serverSkipped > 0) {
+      const extra = `Skipped ${serverSkipped} existing jurors during import.`;
+      setImportWarning(localWarning ? `${localWarning} ${extra}` : extra);
+    }
+    if (!skippedExisting.length && serverSkipped === 0) setShowImport(false);
   };
 
   const handleFileChange = async (e) => {
@@ -246,14 +254,16 @@ export default function ManageJurorsPanel({
               Import CSV
             </button>
             <button className="manage-btn primary" type="button" onClick={() => setShowAdd(true)}>
-              Add Juror
+              <span aria-hidden="true"><CirclePlusIcon className="manage-btn-icon" /></span>
+              Juror
             </button>
           </div>
 
           <div className="manage-list">
-            <div className="manage-search">
-              <input
-                className="manage-input manage-search-input"
+          <div className="manage-search">
+            <span className="manage-search-icon" aria-hidden="true"><SearchIcon /></span>
+            <input
+              className="manage-input manage-search-input"
                 type="text"
                 placeholder="Search jurors"
                 aria-label="Search jurors"

@@ -213,19 +213,23 @@
     min-width: 40px;
     min-height: 40px;
   }
-  .col-filter-popover-status .status-option {
+  .col-filter-popover-status .status-option,
+  .col-filter-popover-multi .status-option {
     font-size: 14px;
+  }
+  .col-filter-popover-multi {
+    max-height: min(50vh, 280px);
   }
 }
 @media (max-width: 900px) and (orientation: landscape) {
   .matrix-scroll {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    scrollbar-color: #cbd5e1 transparent;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
   .matrix-scroll::-webkit-scrollbar { height: 10px; }
   .matrix-scroll::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: var(--scrollbar-thumb);
     border-radius: 999px;
   }
   .matrix-table th:first-child,
@@ -330,7 +334,8 @@
   .rank-card.rank-3 { padding: 22px; }
   .rank-card { --rank-badge-size: 64px; }
   .rank-num { font-size: 16px; }
-  .rank-rest .avg-score { font-size: 28px; }
+  .rank-rest .avg-score { font-size: 18px; }
+  .avg-score { font-size: 18px; }
 
   /* Summary: swipe-scrollable text lines */
   .group-card-students {
@@ -344,16 +349,17 @@
   /* Summary total: slightly smaller on mobile */
   .group-card-header { row-gap: 6px; }
   .group-card-score { width: auto; justify-content: flex-end; }
-  .group-card-score-value  { font-size: 30px; }
+  .group-card-score-value  { font-size: 18px; }
   .group-card-score-label { font-size: 10px; }
-  .group-card-score-label.sigma { font-size: 11px; }
-  .group-card-name { font-size: 14px; }
+  .group-card-score-label.sigma { font-size: 10px; }
+  .group-card-name { font-size: 12px; }
   .group-card-toggle { gap: 4px; }
   .group-card-left { gap: 8px; }
   .eval-badge { padding: 0 6px; min-height: 24px; font-size: 10px; gap: 4px; }
   .eval-badge svg { width: 12px; height: 12px; }
+  .group-card-full-title { font-size: 11px; }
   .group-card-desc,
-  .group-card-students { font-size: 11px; }
+  .group-card-students { font-size: 10px; }
   .group-card-desc-icon svg,
   .group-card-students-icon svg { width: 12px; height: 12px; }
 

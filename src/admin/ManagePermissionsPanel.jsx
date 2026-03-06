@@ -1,7 +1,7 @@
 // src/admin/ManagePermissionsPanel.jsx
 
 import { useEffect, useState } from "react";
-import { ChevronDownIcon, FolderLockIcon } from "../shared/Icons";
+import { ChevronDownIcon, FolderLockIcon, SearchIcon } from "../shared/Icons";
 import LastActivity from "./LastActivity";
 
 export default function ManagePermissionsPanel({
@@ -89,6 +89,7 @@ export default function ManagePermissionsPanel({
 
           <div className="manage-list">
             <div className="manage-search">
+              <span className="manage-search-icon" aria-hidden="true"><SearchIcon /></span>
               <input
                 className="manage-input manage-search-input"
                 type="text"

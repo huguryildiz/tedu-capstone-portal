@@ -546,11 +546,10 @@ export default function AnalysisTab({ dashboardStats, submittedData, lastRefresh
         {/* Print-only header — appears above page 1 */}
         <div className="print-header">
           <div className="print-header-title">TED University — Department of Electrical &amp; Electronics Engineering</div>
-          <div className="print-header-sub">Senior Project (EE 491 / EE 492) Jury Assessment Report</div>
+          <div className="print-header-sub">EE 492 — Senior Project II · Poster Jury Evaluation Report · {semesterLabel} </div>
           <div className="print-header-meta">
-            <div>{semesterLabel}</div>
             <div>Report Generated: {printDate}</div>
-            <div>{submittedData.length} Final Submission{submittedData.length !== 1 ? "s" : ""} · {dashboardStats.length} Project Group{dashboardStats.length !== 1 ? "s" : ""}</div>
+            <div>{submittedData.length} Jury Evaluation{submittedData.length !== 1 ? "s" : ""} · {dashboardStats.length} Project Group{dashboardStats.length !== 1 ? "s" : ""}</div>
           </div>
         </div>
 

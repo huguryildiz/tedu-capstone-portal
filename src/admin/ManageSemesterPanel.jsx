@@ -1,7 +1,7 @@
 // src/admin/ManageSemesterPanel.jsx
 
-import { useState } from "react";
-import { CheckCircle2Icon, ChevronDownIcon, PencilIcon } from "../shared/Icons";
+import { useMemo, useState } from "react";
+import { CheckCircle2Icon, ChevronDownIcon, PencilIcon, SearchIcon, CirclePlusIcon } from "../shared/Icons";
 import LastActivity from "./LastActivity";
 import DangerIconButton from "../components/admin/DangerIconButton";
 
@@ -75,7 +75,24 @@ export default function ManageSemesterPanel({
     });
   };
 
-  const orderedSemesters = sortSemesters(semesters);
+  const uniqueSemesters = useMemo(() => {
+    const byId = new Map();
+    (semesters || []).forEach((s) => {
+      const key = s?.id || `${s?.name || ""}|${s?.starts_on || ""}|${s?.ends_on || ""}`;
+      if (!key) return;
+      const prev = byId.get(key);
+      if (!prev) {
+        byId.set(key, s);
+        return;
+      }
+      const prevTs = new Date(prev?.updated_at || prev?.updatedAt || 0).getTime();
+      const nextTs = new Date(s?.updated_at || s?.updatedAt || 0).getTime();
+      if (Number.isFinite(nextTs) && nextTs > prevTs) byId.set(key, s);
+    });
+    return Array.from(byId.values());
+  }, [semesters]);
+
+  const orderedSemesters = sortSemesters(uniqueSemesters);
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const filteredSemesters = normalizedSearch
     ? orderedSemesters.filter((s) => {
@@ -134,12 +151,12 @@ export default function ManageSemesterPanel({
 
       {isOpen && (
         <div className="manage-card-body">
-          <div className="manage-card-desc">Set the active term and maintain semester dates.</div>
+          <div className="manage-card-desc">Select the active semester, create new terms, and manage semester dates.</div>
           <div className="manage-field">
-            <label className="manage-list-header manage-list-header--danger">Active Semester</label>
+            <label className="manage-list-header">Active Semester</label>
             <div className="manage-row">
               <select
-                className="manage-select is-danger"
+                className="manage-select"
                 value={activeSemesterId || ""}
                 onChange={(e) => onSetActive(e.target.value)}
               >
@@ -149,14 +166,19 @@ export default function ManageSemesterPanel({
                   </option>
                 ))}
               </select>
+              <button className="manage-btn primary" type="button" onClick={() => setShowCreate(true)}>
+                <span aria-hidden="true"><CirclePlusIcon className="manage-btn-icon" /></span>
+                Semester
+              </button>
             </div>
           </div>
 
           <div className="manage-list">
             <div className="manage-list-header">All Semesters</div>
-            <div className="manage-search">
-              <input
-                className="manage-input manage-search-input"
+          <div className="manage-search">
+            <span className="manage-search-icon" aria-hidden="true"><SearchIcon /></span>
+            <input
+              className="manage-input manage-search-input"
                 type="text"
                 placeholder="Search semesters"
                 aria-label="Search semesters"
@@ -165,9 +187,17 @@ export default function ManageSemesterPanel({
               />
             </div>
             {visibleSemesters.map((s) => (
-              <div key={s.id} className="manage-item">
+              <div key={s.id} className={`manage-item${s.is_active ? " is-active" : ""}`}>
                 <div>
-                  <div className="manage-item-title">{s.name}</div>
+                  <div className="manage-item-title-row">
+                    <div className="manage-item-title">{s.name}</div>
+                    {s.is_active && (
+                      <span className="manage-pill manage-pill-icon" aria-label="Active semester" title="Active semester">
+                        <CheckCircle2Icon />
+                        ACTIVE
+                      </span>
+                    )}
+                  </div>
                   <div className="manage-item-sub manage-meta-line">
                     <span className="manage-meta-icon manage-semester-date-icon" aria-hidden="true">
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -192,11 +222,6 @@ export default function ManageSemesterPanel({
                   </div>
                 </div>
                 <div className="manage-item-actions">
-                  {s.is_active && (
-                    <span className="manage-pill">
-                      <CheckCircle2Icon /> ACTIVE
-                    </span>
-                  )}
                   <button
                     className="manage-icon-btn"
                     type="button"
@@ -237,12 +262,6 @@ export default function ManageSemesterPanel({
               {showAll ? "Show fewer semesters" : `Show all semesters (${orderedSemesters.length})`}
             </button>
           )}
-
-          <div className="manage-card-actions">
-            <button className="manage-btn primary" type="button" onClick={() => setShowCreate(true)}>
-              + Create Semester
-            </button>
-          </div>
 
           {showCreate && (
             <div className="manage-modal">

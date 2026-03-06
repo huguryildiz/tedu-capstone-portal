@@ -423,7 +423,7 @@ export default function EvalStep({
             </svg>
             {allComplete
               ? "Submit Final Scores"
-              : `Submit Final Scores(${countFilled(scores, projects)} / ${projects.length * CRITERIA.length} filled)`}
+              : `Submit Final Scores (${countFilled(scores, projects)} / ${projects.length * CRITERIA.length} filled)`}
           </button>
         )}
 

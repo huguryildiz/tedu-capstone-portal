@@ -2,10 +2,10 @@ name: Database Backup
 
 on:
   schedule:
-    # Her Pazar 03:00 UTC (Türkiye saatiyle 06:00)
-    - cron: '0 3 * * 0'
+    # First day of every month at 03:00 UTC (06:00 in Turkey)
+    - cron: '0 3 1 * *'
   workflow_dispatch:
-    # GitHub Actions sayfasından elle de tetiklenebilir
+    # Can also be triggered manually from the GitHub Actions page
 
 jobs:
   backup:

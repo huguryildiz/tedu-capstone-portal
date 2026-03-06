@@ -109,6 +109,84 @@ ON CONFLICT (key) DO NOTHING;
 -- ── Schema upgrades / legacy cleanup (idempotent) ───────────
 ALTER TABLE public.semesters ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 ALTER TABLE public.projects  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+
+-- Enforce unique group numbers per semester (safety for concurrent inserts).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM projects
+    GROUP BY semester_id, group_no
+    HAVING COUNT(*) > 1
+  ) THEN
+    RAISE EXCEPTION 'project_group_duplicate';
+  END IF;
+END;
+$$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS projects_semester_group_no_key
+  ON public.projects (semester_id, group_no);
+
+-- Enforce unique semester names (case-insensitive) and dedupe existing rows.
+-- Use a temp table so the dedupe set can be reused across multiple statements.
+DROP TABLE IF EXISTS tmp_semester_dups;
+CREATE TEMP TABLE tmp_semester_dups AS
+WITH ranked AS (
+  SELECT
+    id,
+    lower(trim(name)) AS lname,
+    is_active,
+    updated_at,
+    created_at,
+    ROW_NUMBER() OVER (
+      PARTITION BY lower(trim(name))
+      ORDER BY
+        is_active DESC,
+        updated_at DESC NULLS LAST,
+        created_at DESC NULLS LAST,
+        id ASC
+    ) AS rn,
+    FIRST_VALUE(id) OVER (
+      PARTITION BY lower(trim(name))
+      ORDER BY
+        is_active DESC,
+        updated_at DESC NULLS LAST,
+        created_at DESC NULLS LAST,
+        id ASC
+    ) AS keep_id
+  FROM public.semesters
+  WHERE name IS NOT NULL AND trim(name) <> ''
+)
+SELECT id, keep_id
+FROM ranked
+WHERE rn > 1;
+
+UPDATE public.projects p
+SET semester_id = d.keep_id
+FROM tmp_semester_dups d
+WHERE p.semester_id = d.id;
+
+UPDATE public.scores s
+SET semester_id = d.keep_id
+FROM tmp_semester_dups d
+WHERE s.semester_id = d.id;
+
+UPDATE public.juror_semester_auth jsa
+SET semester_id = d.keep_id
+FROM tmp_semester_dups d
+WHERE jsa.semester_id = d.id;
+
+UPDATE public.audit_logs al
+SET entity_id = d.keep_id
+FROM tmp_semester_dups d
+WHERE al.entity_type = 'semester' AND al.entity_id = d.id;
+
+DELETE FROM public.semesters s
+USING tmp_semester_dups d
+WHERE s.id = d.id;
+
+CREATE UNIQUE INDEX IF NOT EXISTS semesters_name_ci_unique
+  ON public.semesters (lower(trim(name)));
 ALTER TABLE public.jurors    ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 ALTER TABLE public.scores    ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 ALTER TABLE public.scores    ADD COLUMN IF NOT EXISTS final_submitted_at timestamptz;
@@ -1451,8 +1529,19 @@ BEGIN
     RAISE EXCEPTION 'unauthorized' USING ERRCODE = 'P0401';
   END IF;
 
+  v_name := trim(p_name);
+  IF v_name IS NULL OR v_name = '' THEN
+    RAISE EXCEPTION 'semester_name_required';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM semesters s
+    WHERE lower(trim(s.name)) = lower(v_name)
+  ) THEN
+    RAISE EXCEPTION 'semester_name_exists';
+  END IF;
+
   INSERT INTO semesters (name, is_active, starts_on, ends_on)
-  VALUES (p_name, false, p_starts_on, p_ends_on)
+  VALUES (v_name, false, p_starts_on, p_ends_on)
   RETURNING semesters.id, semesters.name, semesters.is_active, semesters.starts_on, semesters.ends_on
     INTO v_id, v_name, v_active, v_starts_on, v_ends_on;
 
@@ -1482,6 +1571,8 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, extensions
 AS $$
+DECLARE
+  v_name text;
 BEGIN
   IF NOT public._verify_admin_password(p_admin_password) THEN
     RAISE EXCEPTION 'unauthorized' USING ERRCODE = 'P0401';
@@ -1491,8 +1582,20 @@ BEGIN
     RAISE EXCEPTION 'invalid_dates';
   END IF;
 
+  v_name := trim(p_name);
+  IF v_name IS NULL OR v_name = '' THEN
+    RAISE EXCEPTION 'semester_name_required';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM semesters s
+    WHERE lower(trim(s.name)) = lower(v_name)
+      AND s.id <> p_semester_id
+  ) THEN
+    RAISE EXCEPTION 'semester_name_exists';
+  END IF;
+
   UPDATE semesters
-  SET name = p_name,
+  SET name = v_name,
       starts_on = p_starts_on,
       ends_on = p_ends_on
   WHERE id = p_semester_id;
@@ -1503,7 +1606,7 @@ BEGIN
     'semester_update',
     'semester',
     p_semester_id,
-    format('Admin updated semester %s', p_name),
+    format('Admin updated semester %s', v_name),
     null
   );
 
@@ -1525,11 +1628,6 @@ DECLARE
   v_name text;
 BEGIN
   PERFORM public._assert_delete_password(p_delete_password);
-
-  IF EXISTS (SELECT 1 FROM projects p WHERE p.semester_id = p_semester_id)
-     OR EXISTS (SELECT 1 FROM scores s WHERE s.semester_id = p_semester_id) THEN
-    RAISE EXCEPTION 'semester_has_dependencies';
-  END IF;
 
   SELECT name INTO v_name FROM semesters WHERE id = p_semester_id;
 
@@ -1581,6 +1679,53 @@ BEGIN
     FROM projects p
     WHERE p.semester_id = p_semester_id
     ORDER BY p.group_no ASC;
+END;
+$$;
+
+DROP FUNCTION IF EXISTS public.rpc_admin_create_project(uuid, integer, text, text, text);
+CREATE OR REPLACE FUNCTION public.rpc_admin_create_project(
+  p_semester_id uuid,
+  p_group_no integer,
+  p_project_title text,
+  p_group_students text,
+  p_admin_password text
+)
+RETURNS TABLE (project_id uuid)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_id uuid;
+BEGIN
+  IF NOT public._verify_admin_password(p_admin_password) THEN
+    RAISE EXCEPTION 'unauthorized' USING ERRCODE = 'P0401';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM projects
+    WHERE semester_id = p_semester_id
+      AND group_no = p_group_no
+  ) THEN
+    RAISE EXCEPTION 'project_group_exists';
+  END IF;
+
+  INSERT INTO projects (semester_id, group_no, project_title, group_students)
+  VALUES (p_semester_id, p_group_no, p_project_title, p_group_students)
+  RETURNING id INTO v_id;
+
+  PERFORM public._audit_log(
+    'admin',
+    null::uuid,
+    'project_create',
+    'project',
+    v_id,
+    format('Admin created project Group %s — %s', p_group_no, p_project_title),
+    jsonb_build_object('semester_id', p_semester_id, 'group_no', p_group_no)
+  );
+
+  RETURN QUERY SELECT v_id;
 END;
 $$;
 
@@ -1661,10 +1806,6 @@ DECLARE
 BEGIN
   PERFORM public._assert_delete_password(p_delete_password);
 
-  IF EXISTS (SELECT 1 FROM scores s WHERE s.project_id = p_project_id) THEN
-    RAISE EXCEPTION 'project_has_scores';
-  END IF;
-
   SELECT project_title, group_no, semester_id
     INTO v_title, v_group, v_semester_id
   FROM projects
@@ -1730,32 +1871,31 @@ BEGIN
     AND lower(regexp_replace(trim(coalesce(j.juror_inst, '')), '\\s+', ' ', 'g')) = v_norm_inst
   LIMIT 1;
 
-  IF v_id IS NULL THEN
-    INSERT INTO jurors (juror_name, juror_inst)
-    VALUES (trim(p_juror_name), trim(p_juror_inst))
-    RETURNING jurors.id, jurors.juror_name, jurors.juror_inst
-    INTO v_id, v_name, v_inst;
-    v_created := true;
+  IF v_id IS NOT NULL THEN
+    RAISE EXCEPTION 'juror_exists';
   END IF;
 
-  IF v_created THEN
-    PERFORM public._audit_log(
-      'admin',
-      null::uuid,
-      'juror_create',
-      'juror',
-      v_id,
-      format(
-        'Admin created juror %s%s',
-        COALESCE(v_name, ''),
-        CASE
-          WHEN COALESCE(NULLIF(trim(v_inst), ''), '') = '' THEN ''
-          ELSE format(' (%s)', v_inst)
-        END
-      ),
-      null
-    );
-  END IF;
+  INSERT INTO jurors (juror_name, juror_inst)
+  VALUES (trim(p_juror_name), trim(p_juror_inst))
+  RETURNING jurors.id, jurors.juror_name, jurors.juror_inst
+  INTO v_id, v_name, v_inst;
+
+  PERFORM public._audit_log(
+    'admin',
+    null::uuid,
+    'juror_create',
+    'juror',
+    v_id,
+    format(
+      'Admin created juror %s%s',
+      COALESCE(v_name, ''),
+      CASE
+        WHEN COALESCE(NULLIF(trim(v_inst), ''), '') = '' THEN ''
+        ELSE format(' (%s)', v_inst)
+      END
+    ),
+    null
+  );
 
   RETURN QUERY SELECT v_id, v_name, v_inst;
 END;
@@ -1834,6 +1974,47 @@ BEGIN
   );
 
   RETURN true;
+END;
+$$;
+
+DROP FUNCTION IF EXISTS public.rpc_admin_delete_counts(text, uuid, text);
+CREATE OR REPLACE FUNCTION public.rpc_admin_delete_counts(
+  p_type text,
+  p_id   uuid,
+  p_admin_password text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_projects    bigint := 0;
+  v_scores      bigint := 0;
+  v_juror_auths bigint := 0;
+BEGIN
+  IF NOT public._verify_admin_password(p_admin_password) THEN
+    RAISE EXCEPTION 'unauthorized' USING ERRCODE = 'P0401';
+  END IF;
+
+  IF p_type = 'semester' THEN
+    SELECT COUNT(*) INTO v_projects    FROM projects           WHERE semester_id = p_id;
+    SELECT COUNT(*) INTO v_scores      FROM scores             WHERE semester_id = p_id;
+    SELECT COUNT(*) INTO v_juror_auths FROM juror_semester_auth WHERE semester_id = p_id;
+    RETURN jsonb_build_object('projects', v_projects, 'scores', v_scores, 'juror_auths', v_juror_auths);
+
+  ELSIF p_type = 'project' THEN
+    SELECT COUNT(*) INTO v_scores FROM scores WHERE project_id = p_id;
+    RETURN jsonb_build_object('scores', v_scores);
+
+  ELSIF p_type = 'juror' THEN
+    SELECT COUNT(*) INTO v_scores      FROM scores             WHERE juror_id = p_id;
+    SELECT COUNT(*) INTO v_juror_auths FROM juror_semester_auth WHERE juror_id = p_id;
+    RETURN jsonb_build_object('scores', v_scores, 'juror_auths', v_juror_auths);
+
+  ELSE
+    RAISE EXCEPTION 'unsupported_type';
+  END IF;
 END;
 $$;
 
@@ -2664,8 +2845,10 @@ GRANT EXECUTE ON FUNCTION public.rpc_admin_set_active_semester(uuid, text) TO an
 GRANT EXECUTE ON FUNCTION public.rpc_admin_create_semester(text, date, date, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_admin_update_semester(uuid, text, date, date, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_admin_list_projects(uuid, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rpc_admin_create_project(uuid, integer, text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_admin_upsert_project(uuid, integer, text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_admin_delete_project(uuid, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rpc_admin_delete_counts(text, uuid, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_admin_create_juror(text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_admin_update_juror(uuid, text, text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_admin_delete_juror(uuid, text) TO anon, authenticated;

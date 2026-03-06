@@ -306,6 +306,18 @@ export async function adminListProjects(semesterId, adminPassword) {
   return data || [];
 }
 
+export async function adminCreateProject(payload, adminPassword) {
+  const { data, error } = await supabase.rpc("rpc_admin_create_project", {
+    p_semester_id: payload.semesterId,
+    p_group_no: payload.group_no,
+    p_project_title: payload.project_title,
+    p_group_students: payload.group_students,
+    p_admin_password: adminPassword,
+  });
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
 export async function adminUpsertProject(payload, adminPassword) {
   const { data, error } = await supabase.rpc("rpc_admin_upsert_project", {
     p_semester_id: payload.semesterId,
@@ -506,6 +518,16 @@ export async function adminDeleteJuror(jurorId, deletePassword) {
   });
   if (error) throw error;
   return data === true;
+}
+
+export async function adminDeleteCounts(targetType, targetId, adminPassword) {
+  const { data, error } = await supabase.rpc("rpc_admin_delete_counts", {
+    p_type: targetType,
+    p_id: targetId,
+    p_admin_password: adminPassword,
+  });
+  if (error) throw error;
+  return data;
 }
 
 export async function adminDeleteEntity({ targetType, targetId, deletePassword }) {

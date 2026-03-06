@@ -86,6 +86,7 @@
 .juror-card-editing       { border: 1.5px solid #f5b97a !important; background: #fff1db !important; }
 .juror-card-all-submitted { border: 1.5px solid var(--green) !important; background: #effdf5 !important; }
 .juror-card-in-progress   { border: 1.5px solid #e6d28a !important; background: #fff9ea !important; }
+.juror-card-not-started   { border: 1.5px solid #cbd5e1 !important; background: #f8fafc !important; }
 .juror-card-header  { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
 .juror-card-header > div:first-child { min-width: 0; }
 .juror-name         { font-size: 16px; font-weight: 700; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -149,7 +150,7 @@
   flex: 1 1 auto;
 }
 .juror-row-desc::-webkit-scrollbar, .juror-row-students::-webkit-scrollbar { display: none; }
-.juror-score     { font-size: 15px; font-weight: 700; font-family: 'DM Mono', monospace; color: var(--blue); white-space: nowrap; flex-shrink: 0; }
+.juror-score     { font-size: 15px; font-weight: 700; font-family: var(--font-mono); color: var(--blue); white-space: nowrap; flex-shrink: 0; }
 .juror-row-right {
   display: flex;
   flex-direction: column;
@@ -260,7 +261,7 @@
 }
 .juror-row-detail-title .entity-project-title {
   font-size: 12px;
-  color: #0f172a;
+  color: #64748b;
 }
 .juror-row-detail-students {
   font-size: 11px;

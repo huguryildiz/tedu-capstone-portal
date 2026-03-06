@@ -1,11 +1,23 @@
 // src/components/admin/DeleteConfirmDialog.jsx
 
 import { useEffect, useState } from "react";
+import { TriangleAlertLucideIcon } from "../../shared/Icons";
+
+function buildCountSummary(counts) {
+  if (!counts) return null;
+  const parts = [];
+  if (counts.projects > 0) parts.push(`${counts.projects} project${counts.projects !== 1 ? "s" : ""}`);
+  if (counts.scores > 0) parts.push(`${counts.scores} score${counts.scores !== 1 ? "s" : ""}`);
+  if (counts.juror_auths > 0) parts.push(`${counts.juror_auths} juror assignment${counts.juror_auths !== 1 ? "s" : ""}`);
+  if (parts.length === 0) return null;
+  return `This will also permanently delete: ${parts.join(", ")}.`;
+}
 
 export default function DeleteConfirmDialog({
   open,
   onOpenChange,
   targetLabel,
+  counts,
   onConfirm,
 }) {
   const [password, setPassword] = useState("");
@@ -20,6 +32,13 @@ export default function DeleteConfirmDialog({
   }, [open]);
 
   if (!open) return null;
+  const label = targetLabel || "Selected record";
+  const semesterPrefix = "Semester ";
+  const jurorPrefix = "Juror ";
+  const groupPrefix = "Group ";
+  const isSemesterLabel = label.startsWith(semesterPrefix) && label.length > semesterPrefix.length;
+  const isJurorLabel = label.startsWith(jurorPrefix) && label.length > jurorPrefix.length;
+  const isGroupLabel = label.startsWith(groupPrefix) && label.length > groupPrefix.length;
 
   const handleClose = () => {
     if (loading) return;
@@ -47,12 +66,42 @@ export default function DeleteConfirmDialog({
   return (
     <div className="manage-modal" role="dialog" aria-modal="true">
       <div className="manage-modal-card">
-        <div className="manage-modal-title">Delete Confirmation</div>
+        <div className="manage-modal-title manage-title-with-icon">
+          <span className="manage-title-icon" aria-hidden="true"><TriangleAlertLucideIcon /></span>
+          Delete Confirmation
+        </div>
         <div className="manage-modal-body">
-          <div className="manage-hint">Enter the delete password to confirm.</div>
-          {targetLabel && (
-            <div className="manage-hint"><strong>{targetLabel}</strong></div>
+          <div className="manage-hint manage-hint-inline">
+            {isSemesterLabel ? (
+              <>
+                {semesterPrefix}
+                <strong className="manage-delete-focus">{label.slice(semesterPrefix.length)}</strong>
+                {" will be deleted. Are you sure?"}
+              </>
+            ) : isJurorLabel ? (
+              <>
+                {jurorPrefix}
+                <strong className="manage-delete-focus">{label.slice(jurorPrefix.length)}</strong>
+                {" will be deleted. Are you sure?"}
+              </>
+            ) : isGroupLabel ? (
+              <>
+                <strong className="manage-delete-focus">{label}</strong>
+                {" will be deleted. Are you sure?"}
+              </>
+            ) : (
+              <>
+                <strong className="manage-delete-focus">{label}</strong>
+                {" will be deleted. Are you sure?"}
+              </>
+            )}
+          </div>
+          {buildCountSummary(counts) && (
+            <div className="manage-hint manage-delete-impact">
+              {buildCountSummary(counts)}
+            </div>
           )}
+          <div className="manage-hint">Enter the delete password to confirm.</div>
           <div className="manage-field">
             <label className="manage-label">Delete Password</label>
             <input

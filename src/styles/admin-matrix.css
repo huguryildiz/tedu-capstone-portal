@@ -98,15 +98,15 @@
   height: 12px;
   max-width: 100%;
   margin: 8px 0 6px;
-  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 .matrix-scroll-top-inner {
   height: 1px;
 }
 .matrix-scroll-top::-webkit-scrollbar { height: 10px; }
-.matrix-scroll-top::-webkit-scrollbar-track { background: transparent; }
+.matrix-scroll-top::-webkit-scrollbar-track { background: var(--scrollbar-track); }
 .matrix-scroll-top::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--scrollbar-thumb);
   border-radius: 999px;
 }
 .matrix-scroll-wrap {
@@ -121,12 +121,12 @@
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
   overscroll-behavior-x: contain;
-  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 .matrix-scroll::-webkit-scrollbar { height: 10px; }
-.matrix-scroll::-webkit-scrollbar-track { background: transparent; }
+.matrix-scroll::-webkit-scrollbar-track { background: var(--scrollbar-track); }
 .matrix-scroll::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--scrollbar-thumb);
   border-radius: 999px;
 }
 .matrix-table    { width: 100%; min-width: 900px; border-collapse: collapse; font-size: 13px; background: #fff; table-layout: fixed; }

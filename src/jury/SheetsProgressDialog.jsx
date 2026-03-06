@@ -130,6 +130,7 @@ export default function SheetsProgressDialog({ progress, projects, onConfirm, on
             projectList.map((p) => {
               const row = rows.find((r) => r.projectId === p.project_id);
               const chip = rowStatusChip(row?.status);
+              const isNotStarted = chip.tone === "not-started";
               const total = row?.total ?? "—";
               const timestamp = formatShortTs(row?.timestamp || "—");
               const isOpen = openGroup === p.project_id;
@@ -140,7 +141,7 @@ export default function SheetsProgressDialog({ progress, projects, onConfirm, on
               const hasDetails = Boolean(p.project_title) || students.length > 0;
 
               return (
-                <div key={p.project_id} className="spd-row-wrap">
+                <div key={p.project_id} className={`spd-row-wrap${isNotStarted ? " is-not-started" : ""}`}>
                   <div className="spd-row">
                     <button
                       className="spd-row-left group-accordion-header"

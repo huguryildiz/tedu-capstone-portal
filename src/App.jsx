@@ -14,7 +14,7 @@
 // (juror_id + semester_id), not as a source of truth.
 // ============================================================
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import JuryForm   from "./JuryForm";
 import AdminPanel from "./AdminPanel";
 import {
@@ -31,13 +31,25 @@ import "./styles/home.css";
 import teduLogo from "./assets/tedu-logo.png";
 
 export default function App() {
-  const [page,           setPage]          = useState("home");
+  const [page,           setPage]          = useState(() => {
+    try {
+      const saved = localStorage.getItem("tedu_portal_page");
+      if (saved === "home" || saved === "jury" || saved === "admin") return saved;
+    } catch {}
+    return "home";
+  });
   const adminPassRef     = useRef("");
   const [adminUnlocked,  setAdminUnlocked]  = useState(false);
   const [adminChecking,  setAdminChecking]  = useState(false);
   const [adminInput,     setAdminInput]     = useState("");
   const [adminAuthError, setAdminAuthError] = useState("");
   const [adminShowPass,  setAdminShowPass]  = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("tedu_portal_page", page);
+    } catch {}
+  }, [page]);
   
   function handleAdminLogin() {
     const pass = adminInput.trim();

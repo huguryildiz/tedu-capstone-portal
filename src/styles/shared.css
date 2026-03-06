@@ -13,6 +13,8 @@ html, body { overflow-x: hidden; width: 100%; min-height: 100dvh; }
 
 /* ── Design tokens ─────────────────────────────────────────── */
 :root {
+  --font-ui:     'DM Sans', sans-serif;
+  --font-mono:   'DM Mono', monospace;
   --navy-900:   #0F1B4C;
   --navy-800:   #162A66;
   --brand-600:  #2F56D6;
@@ -36,6 +38,9 @@ html, body { overflow-x: hidden; width: 100%; min-height: 100dvh; }
   --gray-500:    #64748b;
   --gray-700:    #334155;
   --gray-900:    #0f172a;
+  --scrollbar-thumb: var(--brand-600);
+  --scrollbar-thumb-hover: var(--brand-500);
+  --scrollbar-track: transparent;
   --radius:      12px;
   --shadow:      0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
   --shadow-lg:   0 8px 32px rgba(0,0,0,.12);
@@ -49,7 +54,7 @@ html, body { overflow-x: hidden; width: 100%; min-height: 100dvh; }
 
 /* ── Base body ─────────────────────────────────────────────── */
 body {
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-ui);
   background: var(--gray-50);
   color: var(--gray-900);
   min-height: 100dvh;
@@ -216,7 +221,7 @@ body {
   background: #f8fafc;
   padding: 0 16px;
   font-size: 16px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-ui);
   outline: none;
   transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
 }
@@ -474,7 +479,7 @@ body {
   border: none;
   border-radius: var(--radius);
   padding: 12px 24px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-ui);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
@@ -502,7 +507,7 @@ body {
   border: 2px solid var(--blue-light);
   border-radius: var(--radius);
   padding: 12px 24px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-ui);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
@@ -544,11 +549,13 @@ body {
   flex-shrink: 1;
   max-width: 100%;
 }
+.entity-project-title { color: #64748b; }
 .entity-group-label svg,
 .entity-project-title svg,
 .entity-student-names svg {
   flex-shrink: 0;
 }
+.entity-project-title svg { color: #94a3b8; }
 .entity-group-label > span {
   font-weight: 600;
   overflow: hidden;
