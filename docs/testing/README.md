@@ -124,7 +124,7 @@ npm run check:no-nested-panels
 | `e2e.yml` (cron) | nightly 02:00 UTC | a11y, visual (in addition to PR matrix) | `excel-e2e-a11y-NNN`, `excel-e2e-visual-NNN` |
 | `perf.yml` | `workflow_dispatch` | concurrent-jury load test | `excel-perf-NNN`, `perf-results-NNN` |
 | `edge-fn-smoke.yml` | daily 06:00 UTC | smokes deployed Edge Fns against vera-demo | `edge-fn-smoke-NNN` |
-| `demo-db-reset.yml` | daily 00:23 UTC | regenerate demo seed + post-seed assertions; retries transient PostgreSQL pooler failures | `demo-db-reset-NNN` |
+| `demo-db-reset.yml` | daily 00:23 UTC | regenerate demo seed + post-seed assertions; uses session pooler and retries transient PostgreSQL failures | `demo-db-reset-NNN` |
 | `db-backup.yml` | monthly | pg_dump of vera-prod | `db-backup-NNN` |
 
 Schedule cron runs unblock the visual + a11y suite without paying the

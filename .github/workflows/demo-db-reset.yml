@@ -35,6 +35,14 @@ jobs:
           mkdir -p reset-results
           set -euo pipefail
 
+          # The seed is a long-lived single psql session. If the secret uses
+          # Supavisor transaction mode (6543), use session mode (5432) for
+          # this workflow while preserving the secret's credentials/options.
+          database_url="$DEMO_DATABASE_URL"
+          if [[ "$database_url" == *:6543/* ]]; then
+            database_url="${database_url/:6543\//:5432/}"
+          fi
+
           retry_psql_file() {
             local sql_file="$1"
             local log_file="$2"
@@ -43,7 +51,7 @@ jobs:
             : > "$log_file"
             for attempt in 1 2 3 4 5; do
               attempt_log="$(mktemp)"
-              if psql "$DEMO_DATABASE_URL" --no-psqlrc -v ON_ERROR_STOP=1 \
+              if psql "$database_url" --no-psqlrc -v ON_ERROR_STOP=1 \
                 < "$sql_file" > "$attempt_log" 2>&1; then
                 tee -a "$log_file" < "$attempt_log"
                 rm -f "$attempt_log"
@@ -81,6 +89,13 @@ jobs:
           mkdir -p reset-results
           set -euo pipefail
 
+          # Match the seed step: use Supavisor session mode for the smoke
+          # query when the stored URL points at transaction mode.
+          database_url="$DEMO_DATABASE_URL"
+          if [[ "$database_url" == *:6543/* ]]; then
+            database_url="${database_url/:6543\//:5432/}"
+          fi
+
           retry_psql_file() {
             local sql_file="$1"
             local log_file="$2"
@@ -89,7 +104,7 @@ jobs:
             : > "$log_file"
             for attempt in 1 2 3 4 5; do
               attempt_log="$(mktemp)"
-              if psql "$DEMO_DATABASE_URL" --no-psqlrc -v ON_ERROR_STOP=1 \
+              if psql "$database_url" --no-psqlrc -v ON_ERROR_STOP=1 \
                 < "$sql_file" > "$attempt_log" 2>&1; then
                 tee -a "$log_file" < "$attempt_log"
                 rm -f "$attempt_log"
