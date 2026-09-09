@@ -159,7 +159,9 @@ the canonical card-section / card-tap rules in `CLAUDE.md`.
 ### The DB type contract drifts
 
 - **Where caught:** `npm run check:db-types` regenerates `db.generated.ts`;
-  if the committed file differs from the regenerated one, CI fails.
+  if the committed schema declarations differ from the regenerated ones, CI
+  fails. The generated PostgREST version metadata is normalized because it is
+  not part of the database type contract.
 
 ### A new isolated table is added without RLS
 
