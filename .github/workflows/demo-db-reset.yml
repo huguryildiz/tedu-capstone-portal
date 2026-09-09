@@ -9,6 +9,7 @@ jobs:
   reset:
     name: Daily reset
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -29,18 +30,94 @@ jobs:
       - name: Apply demo seed
         env:
           DEMO_DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+          PGCONNECT_TIMEOUT: 30
         run: |
           mkdir -p reset-results
-          psql "$DEMO_DATABASE_URL" --no-psqlrc -v ON_ERROR_STOP=1 < sql/seeds/demo_seed.sql \
-            2>&1 | tee reset-results/seed-apply-${{ github.run_number }}.log
+          set -euo pipefail
+
+          retry_psql_file() {
+            local sql_file="$1"
+            local log_file="$2"
+            local attempt attempt_log status retry_delay
+
+            : > "$log_file"
+            for attempt in 1 2 3 4 5; do
+              attempt_log="$(mktemp)"
+              if psql "$DEMO_DATABASE_URL" --no-psqlrc -v ON_ERROR_STOP=1 \
+                < "$sql_file" > "$attempt_log" 2>&1; then
+                tee -a "$log_file" < "$attempt_log"
+                rm -f "$attempt_log"
+                return 0
+              else
+                status=$?
+              fi
+
+              tee -a "$log_file" < "$attempt_log"
+              if ! grep -Eiq 'EAUTHQUERY|could not connect|connection to server|connection refused|network is unreachable|no route to host|timeout expired|server closed the connection' "$attempt_log"; then
+                rm -f "$attempt_log"
+                return "$status"
+              fi
+              rm -f "$attempt_log"
+
+              if [ "$attempt" -lt 5 ]; then
+                retry_delay=$((5 * 2 ** (attempt - 1)))
+                echo "Transient PostgreSQL connection failure (attempt $attempt/5); retrying in ${retry_delay}s..." | tee -a "$log_file"
+                sleep "$retry_delay"
+              fi
+            done
+
+            return "$status"
+          }
+
+          retry_psql_file \
+            sql/seeds/demo_seed.sql \
+            reset-results/seed-apply-${{ github.run_number }}.log
 
       - name: Post-seed smoke
         env:
           DEMO_DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+          PGCONNECT_TIMEOUT: 30
         run: |
           mkdir -p reset-results
-          set -o pipefail
-          psql "$DEMO_DATABASE_URL" --no-psqlrc -v ON_ERROR_STOP=1 <<'SQL' 2>&1 | tee reset-results/post-seed-smoke-${{ github.run_number }}.log
+          set -euo pipefail
+
+          retry_psql_file() {
+            local sql_file="$1"
+            local log_file="$2"
+            local attempt attempt_log status retry_delay
+
+            : > "$log_file"
+            for attempt in 1 2 3 4 5; do
+              attempt_log="$(mktemp)"
+              if psql "$DEMO_DATABASE_URL" --no-psqlrc -v ON_ERROR_STOP=1 \
+                < "$sql_file" > "$attempt_log" 2>&1; then
+                tee -a "$log_file" < "$attempt_log"
+                rm -f "$attempt_log"
+                return 0
+              else
+                status=$?
+              fi
+
+              tee -a "$log_file" < "$attempt_log"
+              if ! grep -Eiq 'EAUTHQUERY|could not connect|connection to server|connection refused|network is unreachable|no route to host|timeout expired|server closed the connection' "$attempt_log"; then
+                rm -f "$attempt_log"
+                return "$status"
+              fi
+              rm -f "$attempt_log"
+
+              if [ "$attempt" -lt 5 ]; then
+                retry_delay=$((5 * 2 ** (attempt - 1)))
+                echo "Transient PostgreSQL connection failure (attempt $attempt/5); retrying in ${retry_delay}s..." | tee -a "$log_file"
+                sleep "$retry_delay"
+              fi
+            done
+
+            return "$status"
+          }
+
+          smoke_sql="$(mktemp)"
+          trap 'rm -f "$smoke_sql"' EXIT
+          cat > "$smoke_sql" <<'SQL'
             DO $$
             DECLARE
               v_org_count           INT;
@@ -97,6 +174,10 @@ jobs:
               RAISE NOTICE 'Post-seed smoke: all 5 assertions passed ✓';
             END $$;
           SQL
+
+          retry_psql_file \
+            "$smoke_sql" \
+            reset-results/post-seed-smoke-${{ github.run_number }}.log
 
       - name: Upload reset logs
         if: always()
